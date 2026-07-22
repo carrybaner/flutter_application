@@ -1,0 +1,117 @@
+{
+  "BMSTimeProtocolList": {
+    "chineseName": "BMS 时间",
+    "category": "realtime",
+    "configType": "Register",
+    "fieldCount": 1
+  },
+  "BatteryInfoProtocolList": {
+    "chineseName": "PACK 信息",
+    "category": "realtime",
+    "configType": "Register",
+    "fieldCount": 17
+  },
+  "CellVoltageProtocolList": {
+    "chineseName": "单体电压",
+    "category": "realtime",
+    "configType": "Register",
+    "fieldCount": 26
+  },
+  "TempeCHProtocolList": {
+    "chineseName": "通道温度",
+    "category": "realtime",
+    "configType": "Register",
+    "fieldCount": 8
+  },
+  "AFEStatusProtocolList": {
+    "chineseName": "AFE 状态",
+    "category": "realtime",
+    "configType": "Register",
+    "fieldCount": 5
+  },
+  "AccumulatedProtocolList": {
+    "chineseName": "累计参数",
+    "category": "realtime",
+    "configType": "Register",
+    "fieldCount": 4
+  },
+  "SBSConfigProtocolList": {
+    "chineseName": "系统配置",
+    "category": "writable",
+    "configType": "Data Memery",
+    "fieldCount": 12
+  },
+  "AFEConfigProtocolList": {
+    "chineseName": "AFE 配置",
+    "category": "writable",
+    "configType": "Data Memery",
+    "fieldCount": 13
+  },
+  "EDVTableProtocolList": {
+    "chineseName": "EDV 容量",
+    "category": "writable",
+    "configType": "Data Memery",
+    "fieldCount": 11
+  },
+  "SOCMTCProtocolList": {
+    "chineseName": "温度补偿",
+    "category": "writable",
+    "configType": "Data Memery",
+    "fieldCount": 12
+  },
+  "CalibrationProtocolList": {
+    "chineseName": "参数校准",
+    "category": "writable",
+    "configType": "Data Memery",
+    "fieldCount": 18
+  },
+  "GasGaugingProtocolList": {
+    "chineseName": "计量",
+    "category": "writable",
+    "configType": "Data Memery",
+    "fieldCount": 11
+  },
+  "AlarmProtocolList": {
+    "chineseName": "安全告警",
+    "category": "writable",
+    "configType": "Data Memery",
+    "fieldCount": 27
+  },
+  "SafetyProtocolList": {
+    "chineseName": "软件保护",
+    "category": "writable",
+    "configType": "Data Memery",
+    "fieldCount": 29
+  },
+  "AFESafetyProtocolList": {
+    "chineseName": "硬件保护",
+    "category": "writable",
+    "configType": "Data Memery",
+    "fieldCount": 19
+    
+  },
+  "FailSafetyProtocolList": {
+    "chineseName": "失效保护",
+    "category": "writable",
+    "configType": "Data Memery",
+    "fieldCount": 14
+  },
+  "LEDSupportProtocolList": {
+    "chineseName": "LED 支持",
+    "category": "writable",
+    "configType": "Data Memery",
+    "fieldCount": 14
+  },
+  "HOTConfigurationProtocolList": {
+    "chineseName": "加热控制",
+    "category": "writable",
+    "configType": "Data Memery",
+    "fieldCount": 5
+  },
+  "PAGE1ProtocolList": {
+    "chineseName": "页 1",
+    "category": "history",
+    "configType": "Calendar",
+    "fieldCount": 11
+  }
+}

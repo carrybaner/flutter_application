@@ -1,16 +1,23 @@
-# flutter_application
+# 📝 待办事项
 
-A new Flutter project.
+一个简单的 Flutter 待办事项应用。
 
-## Getting Started
+## 功能
 
-This project is a starting point for a Flutter application.
+- ✅ 添加新的待办事项
+- ✅ 勾选标记完成
+- ✅ 删除事项
+- ✅ 统计总数和已完成数
+- ✅ 全部完成时显示庆祝提示
 
-A few resources to get you started if this is your first Flutter project:
+## 运行
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```bash
+flutter run
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 技术栈
+
+- Flutter
+- Material Design 3
+- StatefulWidget 状态管理
