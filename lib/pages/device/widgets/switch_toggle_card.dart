@@ -81,7 +81,8 @@ class _SwitchToggleCardState extends State<SwitchToggleCard>
                           fontSize: 15, fontWeight: FontWeight.w600)),
                   Text(widget.subtitle,
                       style: TextStyle(
-                          fontSize: 12, color: Colors.grey[500])),
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant)),
                 ],
               ),
             ),

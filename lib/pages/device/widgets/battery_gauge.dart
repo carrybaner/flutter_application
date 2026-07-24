@@ -102,16 +102,17 @@ class _GaugePainter extends CustomPainter {
     );
 
     // ── 渐变前景弧 ──
+    // 弧从 135°(stop 0.375) 到 405°=45°(stop 0.125)，经过 270°(stop 0.75)
+    // 用标准 0..2π 的 SweepGradient + 精准 stops 实现红→黄→绿
     final rect = Rect.fromCircle(center: center, radius: radius + strokeWidth);
-    final gradient = SweepGradient(
-      startAngle: 0.0,
-      endAngle: math.pi * 2,
-      colors: const [
-        AppColors.socRed,
-        AppColors.socYellow,
-        AppColors.socGreen,
+    const gradient = SweepGradient(
+      colors: [
+        AppColors.socGreen,   // stop 0.125 = 45° (弧终点/包络点)
+        AppColors.socRed,     // stop 0.375 = 135° (弧起点)
+        AppColors.socYellow,  // stop 0.75 = 270° (弧中点)
+        AppColors.socGreen,   // stop 1.0 = 360° (包络至绿色)
       ],
-      stops: const [0.0, 0.5, 1.0],
+      stops: [0.125, 0.375, 0.75, 1.0],
     );
 
     final fgPaint = Paint()

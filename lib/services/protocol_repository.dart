@@ -61,12 +61,17 @@ class ProtocolRepository {
         if (currentItems != null && currentName != null) {
           final ct = currentItems.first.configType ?? 'Register';
           final chName = currentItems
-                  .expand((i) => [i.configNameChinese, i.configNameEnglish])
+                  .expand((i) => [i.configNameChinese])
+                  .firstWhere((n) => n != null && n.isNotEmpty, orElse: () => currentName) ??
+              currentName;
+          final enName = currentItems
+                  .expand((i) => [i.configNameEnglish])
                   .firstWhere((n) => n != null && n.isNotEmpty, orElse: () => currentName) ??
               currentName;
           groups.add(ProtocolGroup(
             groupCode: currentName,
             chineseName: chName,
+            englishName: enName,
             configType: ct,
             items: List.unmodifiable(currentItems),
           ));
@@ -89,12 +94,17 @@ class ProtocolRepository {
     if (currentItems != null && currentItems.length > 1 && currentName != null) {
       final ct = currentItems.first.configType ?? 'Register';
       final chineseName = currentItems
-              .expand((i) => [i.configNameChinese, i.configNameEnglish])
+              .expand((i) => [i.configNameChinese])
+              .firstWhere((n) => n != null && n.isNotEmpty, orElse: () => currentName) ??
+          currentName;
+      final englishName = currentItems
+              .expand((i) => [i.configNameEnglish])
               .firstWhere((n) => n != null && n.isNotEmpty, orElse: () => currentName) ??
           currentName;
       groups.add(ProtocolGroup(
-        groupCode: currentName,      // 英文 key，供代码索引
-        chineseName: chineseName,    // 中文名，供 UI 显示
+        groupCode: currentName,
+        chineseName: chineseName,
+        englishName: englishName,
         configType: ct,
         items: List.unmodifiable(currentItems),
       ));

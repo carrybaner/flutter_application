@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import '../../../models/safety_flags.dart';
+import '../../../i18n/app_strings.dart';
 import '../../../theme/app_theme.dart';
 
 /// 状态位三栏面板
 ///
 /// 三列：软件保护 / 硬件保护 / 告警。仅显示已触发项，无显示"正常"
 class StatusBitPanel extends StatelessWidget {
+  final AppStrings s;
   final int swFlags;
   final int hwFlags;
   final int alarmFlags;
 
-  const StatusBitPanel({
+  const StatusBitPanel({required this.s, 
     super.key,
     required this.swFlags,
     required this.hwFlags,
@@ -23,16 +25,16 @@ class StatusBitPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: _FlagColumn(
-            title: '软件保护',
+          child: _FlagColumn(s: s, 
+            title: s.battery.swProt,
             icon: Icons.shield,
             flags: swFlags,
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: _FlagColumn(
-            title: '硬件保护',
+          child: _FlagColumn(s: s, 
+            title: s.battery.hwProt,
             icon: Icons.security,
             flags: hwFlags,
             isHardware: true,
@@ -40,8 +42,8 @@ class StatusBitPanel extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: _FlagColumn(
-            title: '告警',
+          child: _FlagColumn(s: s, 
+            title: s.battery.alarm,
             icon: Icons.warning_amber,
             flags: alarmFlags,
           ),
@@ -56,12 +58,14 @@ class _FlagColumn extends StatelessWidget {
   final IconData icon;
   final int flags;
   final bool isHardware;
+  final AppStrings s;
 
   const _FlagColumn({
     required this.title,
     required this.icon,
     required this.flags,
     this.isHardware = false,
+    required this.s,
   });
 
   @override
@@ -88,19 +92,20 @@ class _FlagColumn extends StatelessWidget {
                   fontSize: 13, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           if (active.isEmpty)
-            const Text('正常',
+            Text(s.battery.normal,
                 style: TextStyle(
                     color: AppColors.socGreen,
                     fontWeight: FontWeight.w600,
                     fontSize: 13))
           else
-            ...active.map(_flagChip).toList(),
+            ...active.map((f) => _flagChip(f)).toList(),
         ],
       ),
     );
   }
 
   Widget _flagChip(SafetyFlag f) {
+    final isZh = s.locale == AppLocale.zh;
     final color = f.isCritical ? SafetyFlags.criticalColor : SafetyFlags.warningColor;
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
@@ -114,7 +119,7 @@ class _FlagColumn extends StatelessWidget {
         ),
         alignment: Alignment.center,
         child: Text(
-          f.label,
+          f.displayLabel(isZh),
           style: TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w600,

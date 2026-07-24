@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
+import '../../../i18n/app_strings.dart';
 
 /// 24 单体电压网格
 ///
 /// 摘要行（最高/最低/压差）+ 24格(6列×4行)，高亮最大(绿)最小(红)
+/// [balancingCells] 正在均衡的 cell 索引集合（0-based），右上角显示蓝色圆点
 class CellVoltageGrid extends StatelessWidget {
+  final AppStrings s;
   final List<double> cellVoltages;
-  const CellVoltageGrid({super.key, required this.cellVoltages});
+  final Set<int> balancingCells;
+  const CellVoltageGrid({super.key, required this.cellVoltages, required this.s, this.balancingCells = const {}});
 
   @override
   Widget build(BuildContext context) {
     if (cellVoltages.isEmpty) {
-      return const Text('无数据', style: TextStyle(color: Colors.grey));
+      return Text(s.battery.noData, style: TextStyle(color: Colors.grey));
     }
 
     final maxV = cellVoltages.reduce((a, b) => a > b ? a : b);
@@ -25,13 +29,13 @@ class CellVoltageGrid extends StatelessWidget {
         Row(
           children: [
             _SummaryChip(
-                label: '最高', value: '${maxV.toStringAsFixed(3)}V', color: AppColors.socGreen),
+                label: s.battery.max, value: '${maxV.toStringAsFixed(3)}V', color: AppColors.socGreen),
             const SizedBox(width: 10),
             _SummaryChip(
-                label: '最低', value: '${minV.toStringAsFixed(3)}V', color: AppColors.socRed),
+                label: s.battery.min, value: '${minV.toStringAsFixed(3)}V', color: AppColors.socRed),
             const SizedBox(width: 10),
             _SummaryChip(
-                label: '压差',
+                label: s.battery.delta,
                 value: '${delta.toStringAsFixed(3)}V',
                 color: delta > 0.2 ? AppColors.socRed : AppColors.socYellow),
           ],
@@ -73,29 +77,51 @@ class CellVoltageGrid extends StatelessWidget {
               borderColor = isDark ? Colors.white.withOpacity(0.06) : Colors.grey.shade200;
             }
 
-            return Container(
-              decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: borderColor, width: 0.5),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    '${i + 1}',
-                    style: TextStyle(fontSize: 9, color: Colors.grey[500]),
-                  ),
-                  Text(
-                    v.toStringAsFixed(3),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: textColor,
+            final isBalancing = balancingCells.contains(i);
+
+            return Stack(
+              children: [
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: borderColor, width: 0.5),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '${i + 1}',
+                          style: TextStyle(fontSize: 9,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        ),
+                        Text(
+                          v.toStringAsFixed(3),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+                if (isBalancing)
+                  Positioned(
+                    top: 3,
+                    right: 3,
+                    child: Container(
+                      width: 5,
+                      height: 5,
+                      decoration: const BoxDecoration(
+                        color: Colors.blue,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
             );
           },
         ),
@@ -127,7 +153,8 @@ class _SummaryChip extends StatelessWidget {
         child: Column(
           children: [
             Text(label,
-                style: TextStyle(fontSize: 10, color: Colors.grey[500])),
+                style: TextStyle(fontSize: 10,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
             const SizedBox(height: 2),
             Text(value,
                 style: TextStyle(

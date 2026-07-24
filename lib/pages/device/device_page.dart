@@ -4,6 +4,8 @@ import '../../models/device_model.dart';
 import '../../providers/device_data_provider.dart' show realtimeDataProvider, isConnectedProvider;
 import '../../providers/theme_provider.dart';
 import '../../services/bluetooth_service.dart';
+import '../../i18n/app_strings.dart';
+import '../../i18n/locale_provider.dart';
 import 'tabs/battery_info_tab.dart';
 import 'tabs/param_setting_tab.dart';
 import 'tabs/abnormal_record_tab.dart';
@@ -26,13 +28,14 @@ class DevicePage extends ConsumerStatefulWidget {
 class _DevicePageState extends ConsumerState<DevicePage>
     with SingleTickerProviderStateMixin {
   int _selectedTab = 0;
+  AppStrings _s = AppStrings.zh;
   late final AnimationController _indicatorCtrl;
 
-  static const _tabs = [
-    _TabInfo(icon: Icons.battery_full, label: '电池信息'),
-    _TabInfo(icon: Icons.tune, label: '参数设置'),
-    _TabInfo(icon: Icons.warning_amber, label: '异常记录'),
-    _TabInfo(icon: Icons.extension, label: '扩展指令'),
+  List<_TabInfo> get _tabs => [
+    _TabInfo(icon: Icons.battery_full, label: _s.device.battery),
+    _TabInfo(icon: Icons.tune, label: _s.device.params),
+    _TabInfo(icon: Icons.warning_amber, label: _s.device.records),
+    _TabInfo(icon: Icons.extension, label: _s.device.commands),
   ];
 
   @override
@@ -53,6 +56,7 @@ class _DevicePageState extends ConsumerState<DevicePage>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    _s = ref.watch(localeProvider);
     final adv = widget.device.advData;
 
     // 监听断连
@@ -61,9 +65,9 @@ class _DevicePageState extends ConsumerState<DevicePage>
         showDialog(
           context: context,
           barrierDismissible: false,
-          builder: (_) => const AlertDialog(
-            title: Text('设备已断开'),
-            content: Text('蓝牙连接已中断，即将返回'),
+          builder: (_) => AlertDialog(
+            title: Text(_s.device.disconnected),
+            content: Text(_s.device.disconnectedDesc),
           ),
         );
         Future.delayed(const Duration(seconds: 1), () {
@@ -109,7 +113,7 @@ class _DevicePageState extends ConsumerState<DevicePage>
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 2),
-          _StatusBadge(),
+          _StatusBadge(label: _s.device.connected),
         ],
       ),
       actions: [
@@ -216,6 +220,8 @@ class _DevicePageState extends ConsumerState<DevicePage>
 
 /// "已连接" 状态小标签
 class _StatusBadge extends StatelessWidget {
+  final String label;
+  const _StatusBadge({required this.label});
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -225,9 +231,9 @@ class _StatusBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.green.withOpacity(0.5), width: 0.5),
       ),
-      child: const Text(
-        '已连接',
-        style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.w600),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.w600),
       ),
     );
   }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/param_group.dart';
+import '../../../i18n/app_strings.dart';
+import '../../../i18n/locale_provider.dart';
 import '../../../models/protocol_item.dart';
 import '../../../providers/device_data_provider.dart';
 import '../../../services/bluetooth_service.dart';
@@ -25,6 +27,7 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
   bool _loading = true;
   bool _loaded = false;
   ConnectionResult? _lastResult;
+  AppStrings _s = AppStrings.zh;
 
   @override
   void initState() {
@@ -117,6 +120,7 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
   Widget build(BuildContext context) {
     // 检测设备切换，重置加载状态
     final currentResult = ref.watch(connectionResultProvider);
+    _s = ref.watch(localeProvider);
     if (_lastResult != currentResult) {
       _lastResult = currentResult;
       _loaded = false;
@@ -130,7 +134,7 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_groups.isEmpty) {
-      return const Center(child: Text('无可用参数', style: TextStyle(color: Colors.grey)));
+      return Center(child: Text(_s.param.noData, style: TextStyle(color: Colors.grey)));
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -152,7 +156,7 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
               return ParamInputField(
                 param: _toParamItem(field, value),
                 onChanged: (oldVal, newVal) {
-                  _onWrite(_groups[_selectedCategory], i, newVal);
+                  _onWrite(_groups[_selectedCategory], i, oldVal, newVal);
                 },
               );
             },
@@ -197,7 +201,7 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
                     : null,
               ),
               child: Text(
-                _groups[i].chineseName,
+                _s.protocolField(_groups[i].chineseName, _groups[i].englishName.isEmpty ? _groups[i].chineseName : _groups[i].englishName),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
@@ -213,30 +217,40 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
     );
   }
 
-  Future<void> _onWrite(ProtocolGroup group, int fieldIndex, double newValue) async {
+  Future<void> _onWrite(ProtocolGroup group, int fieldIndex, double oldValue, double newValue) async {
     final field = group.fields[fieldIndex];
-    final name = field.nameChinese ?? field.nameEnglish ?? '';
+    final name = _s.protocolField(field.nameChinese, field.nameEnglish);
+    final unit = field.unit ?? '';
+
+    // HEX 类型：显示为 0x 格式
+    final groupIdx = _groups.indexOf(group);
+    final origValue = groupIdx >= 0 ? _values[groupIdx][fieldIndex] : null;
+    final isHex = origValue is String && origValue.startsWith('0x');
+    String fmtVal(double v) => isHex ? '0x${v.toInt().toRadixString(16).toUpperCase()}' : _formatDisplayValue(v);
+    final oldStr = fmtVal(oldValue);
+    final newStr = fmtVal(newValue);
+    final display = isHex ? '$oldStr → $newStr' : '$oldStr $unit → $newStr $unit';
 
     // 确认弹窗
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(children: [
+        title: Row(children: [
           Icon(Icons.info_outline, color: Colors.blue, size: 24),
           SizedBox(width: 8),
-          Text('确认修改'),
+          Text(_s.param.writeConfirmShort),
         ]),
-        content: Text('$name\n新值: $newValue',
+        content: Text('"$name"\n$display',
             style: const TextStyle(fontSize: 14)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
+            child: Text(_s.common.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('确认修改'),
+            child: Text(_s.param.writeConfirmShort),
           ),
         ],
       ),
@@ -244,7 +258,6 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
     if (ok != true) return;
 
     // Length=1 配对处理：取相邻字段原始值
-    final groupIdx = _groups.indexOf(group);
     dynamic pairedValue;
     if (field.length == 1 && groupIdx >= 0) {
       final pairIdx = (fieldIndex % 2 == 0) ? fieldIndex + 1 : fieldIndex - 1;
@@ -252,7 +265,7 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
         pairedValue = _values[groupIdx][pairIdx];
       }
       if (pairedValue == null) {
-        _showSnackBar('配对字段值缺失，无法写入');
+        _showSnackBar(_s.param.pairMissing);
         return;
       }
     }
@@ -266,7 +279,7 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
       pairedValue: pairedValue,
     );
     if (cmd.isEmpty) {
-      _showSnackBar('命令构建失败');
+      _showSnackBar(_s.param.cmdBuildFailed);
       return;
     }
     final hex = await poller.sendAndWaitResponse(cmd);
@@ -276,24 +289,23 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
     final success = hex != null;
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(children: [
-          Icon(
-            success ? Icons.check_circle : Icons.warning_amber,
-            color: success ? Colors.green : Colors.orange,
-            size: 24,
-          ),
-          const SizedBox(width: 8),
-          Text(success ? '修改成功' : '已下发，等待生效'),
-        ]),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('确定'),
-          ),
-        ],
-      ),
+      builder: (_) {
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) Navigator.of(context).pop();
+        });
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(children: [
+            Icon(
+              success ? Icons.check_circle : Icons.warning_amber,
+              color: success ? Colors.green : Colors.orange,
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            Text(success ? _s.param.writeSuccessShort : _s.param.writeSent),
+          ]),
+        );
+      },
     );
 
     if (hex != null) {
@@ -326,6 +338,13 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
     } catch (_) {}
   }
 
+  /// 格式化显示值：去掉浮点尾数，与 UI 输入框保持一致
+  String _formatDisplayValue(double v) {
+    final rounded = v.roundToDouble();
+    if ((v - rounded).abs() < 1e-9) return rounded.toInt().toString();
+    return v.toStringAsFixed(6).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+  }
+
   ParamItem _toParamItem(ProtocolItem field, dynamic value) {
     double displayValue;
     String? displayText;
@@ -341,7 +360,7 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
       displayValue = 0;
     }
     return ParamItem(
-      name: field.nameChinese ?? field.nameEnglish ?? '',
+      name: _s.protocolField(field.nameChinese, field.nameEnglish),
       unit: field.unit ?? '',
       currentValue: displayValue,
       displayText: displayText,

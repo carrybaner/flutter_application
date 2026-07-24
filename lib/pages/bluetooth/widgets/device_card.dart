@@ -102,12 +102,12 @@ class DeviceCard extends StatelessWidget {
                         children: [
                           _InfoChip(
                             icon: Icons.bolt,
-                            text: '${adv.voltage}V',
+                            text: '${adv.voltage.toStringAsFixed(3)}V',
                           ),
                           const SizedBox(width: 10),
                           _InfoChip(
                             icon: Icons.swap_horiz,
-                            text: '${adv.current}A',
+                            text: '${adv.current.toStringAsFixed(3)}A',
                           ),
                           if (activeFlags.isNotEmpty) ...[
                             const SizedBox(width: 8),
@@ -146,12 +146,13 @@ class _DividerDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: 4,
       height: 4,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.grey.shade400,
+        color: isDark ? Colors.white.withOpacity(0.2) : Colors.grey.shade400,
       ),
     );
   }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/abnormal_record.dart';
+import '../../../i18n/app_strings.dart';
+import '../../../i18n/locale_provider.dart';
 import '../../../providers/device_data_provider.dart';
 import '../../../services/bluetooth_service.dart';
 import '../../../services/command_builder.dart';
@@ -21,6 +23,7 @@ class _AbnormalRecordTabState extends ConsumerState<AbnormalRecordTab> {
   bool _loading = true;
   double _progress = 0.0;
   bool _loaded = false;
+  AppStrings _s = AppStrings.zh;
   ConnectionResult? _lastResult;
 
   @override
@@ -110,6 +113,7 @@ class _AbnormalRecordTabState extends ConsumerState<AbnormalRecordTab> {
 
   @override
   Widget build(BuildContext context) {
+    _s = ref.watch(localeProvider);
     // 检测设备切换，重置加载状态
     final currentResult = ref.watch(connectionResultProvider);
     if (_lastResult != currentResult) {
@@ -128,7 +132,7 @@ class _AbnormalRecordTabState extends ConsumerState<AbnormalRecordTab> {
           children: [
             const CircularProgressIndicator(),
             const SizedBox(height: 16),
-            Text('加载中 ${(_progress * 100).toStringAsFixed(0)}%'),
+            Text(_s.record.loading + ' ${(_progress * 100).toStringAsFixed(0)}%'),
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 48),
@@ -140,15 +144,15 @@ class _AbnormalRecordTabState extends ConsumerState<AbnormalRecordTab> {
     }
 
     if (_records.isEmpty) {
-      return const Center(
-        child: Text('暂无异常记录', style: TextStyle(color: Colors.grey)),
+      return Center(
+        child: Text(_s.record.noRecords, style: TextStyle(color: Colors.grey)),
       );
     }
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: _records.length,
-      itemBuilder: (_, i) => RecordCard(record: _records[i]),
+      itemBuilder: (_, i) => RecordCard(s: _s, record: _records[i]),
     );
   }
 }

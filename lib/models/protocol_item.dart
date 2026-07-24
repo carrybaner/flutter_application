@@ -112,12 +112,14 @@ class ProtocolItem {
 class ProtocolGroup {
   final String groupCode;
   final String chineseName;
+  final String englishName;
   final String configType;
   final List<ProtocolItem> items;
 
   const ProtocolGroup({
     required this.groupCode,
     required this.chineseName,
+    this.englishName = '',
     required this.configType,
     required this.items,
   });
@@ -137,6 +139,7 @@ class ProtocolGroup {
     return ProtocolGroup(
       groupCode: json['groupCode'] as String,
       chineseName: json['chineseName'] as String? ?? '',
+      englishName: json['englishName'] as String? ?? '',
       configType: json['configType'] as String? ?? 'Register',
       items: (json['items'] as List<dynamic>)
           .map((e) => ProtocolItem.fromJson(e as Map<String, dynamic>))

@@ -7,6 +7,8 @@ import '../../models/device_model.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/device_data_provider.dart';
 import '../../services/bluetooth_service.dart';
+import '../../i18n/app_strings.dart';
+import '../../i18n/locale_provider.dart';
 import '../device/device_page.dart';
 import 'widgets/device_card.dart';
 
@@ -24,6 +26,7 @@ class _BluetoothPageState extends ConsumerState<BluetoothPage>
   StreamSubscription<DeviceModel>? _sub;
 
   final List<DeviceModel> _devices = [];
+  AppStrings _s = AppStrings.zh;
   bool _isScanning = false;
 
   late final AnimationController _refreshAnimCtrl;
@@ -111,10 +114,11 @@ class _BluetoothPageState extends ConsumerState<BluetoothPage>
     _refreshAnimCtrl.stop();
     _refreshAnimCtrl.reset();
 
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _ConnectingDialog(deviceName: device.displayName),
+      builder: (_) => _ConnectingDialog(deviceName: device.displayName, title: _s.bluetooth.connecting),
     );
 
     // 使用新连接流程：连接 → 取型号 → 加载协议 → 启动轮询
@@ -146,7 +150,7 @@ class _BluetoothPageState extends ConsumerState<BluetoothPage>
         if (!mounted) return;
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('连接失败: $e')),
+          SnackBar(content: Text('${_s.bluetooth.connectFailed}: $e')),
         );
         _startScan();
       });
@@ -163,6 +167,7 @@ class _BluetoothPageState extends ConsumerState<BluetoothPage>
 
   @override
   Widget build(BuildContext context) {
+    _s = ref.watch(localeProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -194,7 +199,7 @@ class _BluetoothPageState extends ConsumerState<BluetoothPage>
                 final showConnected = connected != null && isConnected;
                 final scanDevices = showConnected
                     ? _devices
-                        .where((d) => d.deviceId != connected!.deviceId)
+                        .where((d) => d.deviceId != connected.deviceId)
                         .toList()
                     : _devices;
 
@@ -208,10 +213,11 @@ class _BluetoothPageState extends ConsumerState<BluetoothPage>
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.bluetooth_searching,
-                                  size: 48, color: Colors.grey[400]),
+                                  size: 48,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5)),
                               const SizedBox(height: 12),
-                              Text('未发现设备',
-                                  style: TextStyle(color: Colors.grey[500])),
+                              Text(_s.bluetooth.noDevice,
+                                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                             ],
                           ),
                         ),
@@ -226,9 +232,9 @@ class _BluetoothPageState extends ConsumerState<BluetoothPage>
                   itemBuilder: (_, i) {
                   if (i == 0 && showConnected) {
                     return DeviceCard(
-                      device: connected!,
+                      device: connected,
                       isConnected: true,
-                      onTap: () => _onDeviceTap(connected!),
+                      onTap: () => _onDeviceTap(connected),
                     );
                   }
                   final device = showConnected
@@ -271,7 +277,7 @@ class _BluetoothPageState extends ConsumerState<BluetoothPage>
               color: Theme.of(context).colorScheme.primary, size: 22),
           const SizedBox(width: 8),
           Text(
-            '设备连接',
+            _s.bluetooth.pageTitle,
             style: Theme.of(context)
                 .textTheme
                 .titleLarge
@@ -284,7 +290,7 @@ class _BluetoothPageState extends ConsumerState<BluetoothPage>
               size: 22,
             ),
             onPressed: () => ref.read(themeProvider.notifier).toggle(),
-            tooltip: '切换主题',
+            tooltip: _s.bluetooth.switchTheme,
           ),
           if (_isScanning)
             RotationTransition(
@@ -299,11 +305,13 @@ class _BluetoothPageState extends ConsumerState<BluetoothPage>
 
 /// 连接中弹窗
 class _ConnectingDialog extends StatelessWidget {
+  final String title;
   final String deviceName;
-  const _ConnectingDialog({required this.deviceName});
+  const _ConnectingDialog({required this.deviceName, required this.title});
 
   @override
   Widget build(BuildContext context) {
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
@@ -317,7 +325,7 @@ class _ConnectingDialog extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 3),
             ),
             const SizedBox(height: 24),
-            Text('正在连接...',
+            Text(title,
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             Text(deviceName,

@@ -4,13 +4,17 @@ import 'package:flutter/material.dart';
 class SafetyFlag {
   final int bit;
   final String label;
-  final bool isCritical; // true=红色告警, false=黄色报警
+  final String englishLabel;
+  final bool isCritical;
 
   const SafetyFlag({
     required this.bit,
     required this.label,
+    this.englishLabel = '',
     this.isCritical = false,
   });
+
+  String displayLabel(bool isZh) => isZh ? label : (englishLabel.isNotEmpty ? englishLabel : label);
 }
 
 /// 安全标志位定义（16 bits，按协议 BitDesc）
@@ -28,18 +32,18 @@ class SafetyFlags {
     SafetyFlag(bit: 1, label: 'P_DSG'),
     SafetyFlag(bit: 2, label: 'REVC'),
     SafetyFlag(bit: 3, label: 'MOS_OT'),
-    SafetyFlag(bit: 4, label: '充电低温'),           // CHG_UT
-    SafetyFlag(bit: 5, label: '充电过温', isCritical: true),  // CHG_OT
-    SafetyFlag(bit: 6, label: '充电过流', isCritical: true),  // OCC
-    SafetyFlag(bit: 7, label: '单体过压', isCritical: true),  // COV
+    SafetyFlag(bit: 4, label: '充电低温', englishLabel: 'CHG_UT'), // CHG_UT
+    SafetyFlag(bit: 5, label: '充电过温', englishLabel: 'CHG_OT', isCritical: true), // CHG_OT
+    SafetyFlag(bit: 6, label: '充电过流', englishLabel: 'OCC', isCritical: true), // OCC
+    SafetyFlag(bit: 7, label: '单体过压', englishLabel: 'COV', isCritical: true), // COV
     SafetyFlag(bit: 8, label: 'REVC'),
     SafetyFlag(bit: 9, label: 'REVC'),
-    SafetyFlag(bit: 10, label: '放电低温'),          // DSG_UT
-    SafetyFlag(bit: 11, label: '剩余容量保护'),      // RCA
-    SafetyFlag(bit: 12, label: '放电过温', isCritical: true), // DSG_OT
-    SafetyFlag(bit: 13, label: '电池短路', isCritical: true), // SCD
-    SafetyFlag(bit: 14, label: '放电过流', isCritical: true), // OCD
-    SafetyFlag(bit: 15, label: '单体欠压', isCritical: true), // CUV
+    SafetyFlag(bit: 10, label: '放电低温', englishLabel: 'DSG_UT'), // DSG_UT
+    SafetyFlag(bit: 11, label: '剩余容量保护', englishLabel: 'RCA'), // RCA
+    SafetyFlag(bit: 12, label: '放电过温', englishLabel: 'DSG_OT', isCritical: true), // DSG_OT
+    SafetyFlag(bit: 13, label: '电池短路', englishLabel: 'SCD', isCritical: true), // SCD
+    SafetyFlag(bit: 14, label: '放电过流', englishLabel: 'OCD', isCritical: true), // OCD
+    SafetyFlag(bit: 15, label: '单体欠压', englishLabel: 'CUV', isCritical: true), // CUV
   ];
 
   /// 硬件保护 AFE Safety 16bit（反转后与 parseBitDescription 对齐）
@@ -50,17 +54,17 @@ class SafetyFlags {
     SafetyFlag(bit: 2, label: 'WDT'),
     SafetyFlag(bit: 3, label: 'DIS_PF'),
     SafetyFlag(bit: 4, label: 'LV0'),
-    SafetyFlag(bit: 5, label: '充电高温', isCritical: true),
+    SafetyFlag(bit: 5, label: '充电高温', englishLabel: 'OTC', isCritical: true),
     SafetyFlag(bit: 6, label: '充电低温'),
-    SafetyFlag(bit: 7, label: '放电高温', isCritical: true),
+    SafetyFlag(bit: 7, label: '放电高温', englishLabel: 'OTD', isCritical: true),
     SafetyFlag(bit: 8, label: '放电低温'),
     SafetyFlag(bit: 9, label: '放电过流', isCritical: true),
     SafetyFlag(bit: 10, label: '放电过流', isCritical: true),
     SafetyFlag(bit: 11, label: 'OCC2'),
     SafetyFlag(bit: 12, label: '充电过流', isCritical: true),
-    SafetyFlag(bit: 13, label: '欠压', isCritical: true),
-    SafetyFlag(bit: 14, label: '短路', isCritical: true),
-    SafetyFlag(bit: 15, label: '过压', isCritical: true),
+    SafetyFlag(bit: 13, label: '欠压', englishLabel: 'UV', isCritical: true),
+    SafetyFlag(bit: 14, label: '短路', englishLabel: 'SCD', isCritical: true),
+    SafetyFlag(bit: 15, label: '过压', englishLabel: 'COV', isCritical: true),
   ];
 
   /// 广播原始值位定义（非反转，与寄存器 bit 顺序一致）
@@ -100,19 +104,19 @@ class SafetyFlags {
     SafetyFlag(bit: 0, label: 'REVC'),
     SafetyFlag(bit: 1, label: 'REVC'),
     SafetyFlag(bit: 2, label: 'ALERT'),
-    SafetyFlag(bit: 3, label: '安全过温MOS', isCritical: true),
+    SafetyFlag(bit: 3, label: '安全过温MOS', englishLabel: 'SOT_MOS', isCritical: true),
     SafetyFlag(bit: 4, label: '安全欠温充电'),
-    SafetyFlag(bit: 5, label: '安全过温充电', isCritical: true),
-    SafetyFlag(bit: 6, label: '安全过流充电', isCritical: true),
-    SafetyFlag(bit: 7, label: '安全过压', isCritical: true),
+    SafetyFlag(bit: 5, label: '安全过温充电', englishLabel: 'SOT_CHG', isCritical: true),
+    SafetyFlag(bit: 6, label: '安全过流充电', englishLabel: 'SOCC', isCritical: true),
+    SafetyFlag(bit: 7, label: '安全过压', englishLabel: 'SOV', isCritical: true),
     SafetyFlag(bit: 8, label: 'REVC'),
     SafetyFlag(bit: 9, label: 'REVC'),
     SafetyFlag(bit: 10, label: 'REVC'),
     SafetyFlag(bit: 11, label: 'REVC'),
     SafetyFlag(bit: 12, label: '安全欠温放电'),
-    SafetyFlag(bit: 13, label: '安全过温放电', isCritical: true),
-    SafetyFlag(bit: 14, label: '安全过流放电', isCritical: true),
-    SafetyFlag(bit: 15, label: '安全欠压', isCritical: true),
+    SafetyFlag(bit: 13, label: '安全过温放电', englishLabel: 'SOT_DSG', isCritical: true),
+    SafetyFlag(bit: 14, label: '安全过流放电', englishLabel: 'SOCD', isCritical: true),
+    SafetyFlag(bit: 15, label: '安全欠压', englishLabel: 'SUV', isCritical: true),
   ];
 
   /// 硬件保护位解析（AFE Safety）

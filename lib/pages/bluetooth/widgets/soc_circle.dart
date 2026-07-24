@@ -23,6 +23,7 @@ class SocCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SizedBox(
       width: size,
       height: size,
@@ -31,6 +32,7 @@ class SocCircle extends StatelessWidget {
           percentage: soc / 100.0,
           color: _color,
           strokeWidth: strokeWidth,
+          isDark: isDark,
         ),
         child: Center(
           child: FittedBox(
@@ -57,11 +59,13 @@ class _SocPainter extends CustomPainter {
   final double percentage;
   final Color color;
   final double strokeWidth;
+  final bool isDark;
 
   _SocPainter({
     required this.percentage,
     required this.color,
     required this.strokeWidth,
+    required this.isDark,
   });
 
   @override
@@ -73,7 +77,7 @@ class _SocPainter extends CustomPainter {
 
     // 背景弧
     final bgPaint = Paint()
-      ..color = Colors.grey.shade200
+      ..color = isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade200
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
@@ -104,5 +108,5 @@ class _SocPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SocPainter old) =>
-      percentage != old.percentage || color != old.color;
+      percentage != old.percentage || color != old.color || isDark != old.isDark;
 }

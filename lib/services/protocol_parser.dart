@@ -17,9 +17,6 @@ class ProtocolParser {
 
       final fields = group.fields;
 
-      // 长度校验: header.Length 是寄存器数，响应长度字段是数据字节数
-      final respDataLen = int.parse(hexStr.substring(4, 6), radix: 16);
-      final expectedByteLen = group.header.length * 2;
       // 截取数据段: 跳过 flag(2) + funcCode(2) + len(2)，截掉 CRC(4)
       final dataStr = hexStr.substring(6, hexStr.length - 4);
       // 两两交换

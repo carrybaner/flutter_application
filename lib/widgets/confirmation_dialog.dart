@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
+import '../i18n/app_strings.dart';
 import '../theme/app_theme.dart';
 
 /// 通用二次确认弹窗
 class ConfirmationDialog extends StatelessWidget {
   final String title;
   final String message;
-  final String confirmText;
+  final AppStrings s;
   final bool isDanger;
 
   const ConfirmationDialog({
     super.key,
     required this.title,
     required this.message,
-    this.confirmText = '确认',
+    required this.s,
     this.isDanger = false,
   });
 
@@ -34,7 +35,7 @@ class ConfirmationDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: const Text('取消'),
+          child: Text(s.common.cancel),
         ),
         ElevatedButton(
           onPressed: () => Navigator.pop(context, true),
@@ -45,7 +46,7 @@ class ConfirmationDialog extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
           ),
-          child: Text(confirmText),
+          child: Text(s.common.confirm),
         ),
       ],
     );

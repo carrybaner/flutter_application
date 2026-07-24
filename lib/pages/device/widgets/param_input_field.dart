@@ -88,7 +88,7 @@ class _ParamInputFieldState extends State<ParamInputField> {
         children: [
           // 参数名
           SizedBox(
-            width: 100,
+            width: 80,
             child: Text(
               p.name,
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
@@ -103,7 +103,7 @@ class _ParamInputFieldState extends State<ParamInputField> {
                 controller: _ctrl,
                 focusNode: _focusNode,
                 keyboardType:
-                    TextInputType.numberWithOptions(decimal: true, signed: true),
+                    const TextInputType.numberWithOptions(decimal: true, signed: true),
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                 decoration: InputDecoration(
@@ -125,10 +125,11 @@ class _ParamInputFieldState extends State<ParamInputField> {
 
           // 单位
           SizedBox(
-            width: 30,
+            width: 50,
             child: Text(
               p.unit,
-              style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+              style: TextStyle(fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ),
         ],

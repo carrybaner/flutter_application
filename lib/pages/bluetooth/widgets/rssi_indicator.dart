@@ -23,6 +23,7 @@ class RssiIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -38,7 +39,9 @@ class RssiIndicator extends StatelessWidget {
                 height: 4.0 + i * 3,
                 margin: const EdgeInsets.only(left: 2),
                 decoration: BoxDecoration(
-                  color: active ? _color : Colors.grey.shade300,
+                  color: active
+                      ? _color
+                      : (isDark ? Colors.white.withOpacity(0.15) : Colors.grey.shade300),
                   borderRadius: BorderRadius.circular(1),
                 ),
               );

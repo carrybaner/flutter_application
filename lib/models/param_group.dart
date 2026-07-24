@@ -31,3 +31,14 @@ class ParamItem {
   }
 }
 
+/// 参数分组
+class ParamGroup {
+  final String categoryName;
+  final List<ParamItem> parameters;
+
+  const ParamGroup({
+    required this.categoryName,
+    required this.parameters,
+  });
+}
+

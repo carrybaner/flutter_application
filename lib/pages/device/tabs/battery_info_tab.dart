@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/device_data_provider.dart' show realtimeDataProvider;
+import '../../../i18n/app_strings.dart';
+import '../../../i18n/locale_provider.dart';
 import '../../../theme/app_theme.dart';
 import '../widgets/battery_gauge.dart';
 import '../widgets/cell_voltage_grid.dart';
@@ -35,7 +37,7 @@ class BatteryInfoTab extends ConsumerWidget {
   }
 }
 
-class _BatteryInfoContent extends StatefulWidget {
+class _BatteryInfoContent extends ConsumerStatefulWidget {
   final Map<String, dynamic> batteryInfo;
   final Map<String, dynamic>? cellVoltage;
   final Map<String, dynamic>? tempCh;
@@ -51,37 +53,39 @@ class _BatteryInfoContent extends StatefulWidget {
   });
 
   @override
-  State<_BatteryInfoContent> createState() => _BatteryInfoContentState();
+  ConsumerState<_BatteryInfoContent> createState() => _BatteryInfoContentState();
 }
 
-class _BatteryInfoContentState extends State<_BatteryInfoContent> {
+class _BatteryInfoContentState extends ConsumerState<_BatteryInfoContent> {
   int _segmentIndex = 0;
+  AppStrings _s = AppStrings.zh;
 
   @override
   Widget build(BuildContext context) {
+    _s = ref.watch(localeProvider);
     final info = widget.batteryInfo;
 
     // 从协议字段取值
     final soc = (info['SOC'] as num?)?.toInt() ?? 0;
     final voltage = (info['BatteryVoltage'] as num?)?.toDouble() ?? 0;
     final current = (info['Current'] as num?)?.toDouble() ?? 0;
-    final power = (voltage * current.abs()).toString();
+    final power = (voltage * current.abs()).toInt().toString();
     final cycleCount = (info['Cycle_Count'] as num?)?.toInt() ?? 0;
     final soh = (info['SOH'] as num?)?.toInt() ?? 0;
-    final remainingCap = (info['RemainingCapacity'] as num?)?.toString() ?? '--';
-    final fullCap = ((info['FullChargeCapacity'] ?? info['Full Capacity']) as num?)?.toString() ?? '--';
+    final remainingCap = (info['RemainingCapacity'] as num?)?.toStringAsFixed(2) ?? '--';
+    final fullCap = ((info['FullChargeCapacity'] ?? info['Full Capacity']) as num?)?.toStringAsFixed(2) ?? '--';
     final timeToEmpty = (info['AverageTimeToEmpty'] as num?)?.toInt() ?? 0;
     final timeToFull = (info['AverageTimeToFull'] as num?)?.toInt() ?? 0;
     final isCharging = current > 0;
     final isDischarging = current < 0;
-    final chargeStatus = isCharging ? '充电中' : (isDischarging ? '放电中' : '待机');
+    final chargeStatus = isCharging ? _s.battery.charging : (isDischarging ? _s.battery.discharging : _s.battery.standby);
     String? remainingTimeLabel;
     String? remainingTime;
     if (isCharging && timeToFull < 65500) {
-      remainingTimeLabel = '充满';
+      remainingTimeLabel = _s.battery.timeToFull;
       remainingTime = '${timeToFull}min';
     } else if (isDischarging && timeToEmpty < 65500) {
-      remainingTimeLabel = '放空';
+      remainingTimeLabel = _s.battery.timeToEmpty;
       remainingTime = '${timeToEmpty}min';
     }
 
@@ -102,7 +106,7 @@ class _BatteryInfoContentState extends State<_BatteryInfoContent> {
       for (int i = 1; i <= 5; i++) {
         final t = widget.tempCh!['Temper$i'];
         if (t is num && t > 0) {
-          temperatures['探头 $i'] = t.toDouble();
+          temperatures[_s.battery.probe + ' $i'] = t.toDouble();
         }
       }
       final mos = widget.tempCh!['MOS Temper'];
@@ -128,7 +132,7 @@ class _BatteryInfoContentState extends State<_BatteryInfoContent> {
           _SectionCard(
             child: Column(
               children: [
-                BatteryGaugeSection(
+                BatteryGaugeSection(s: _s, 
                   soc: soc,
                   chargeStatus: chargeStatus,
                   voltage: voltage,
@@ -136,7 +140,7 @@ class _BatteryInfoContentState extends State<_BatteryInfoContent> {
                   bmsTime: _formatBmsTime(widget.bmsTime),
                 ),
                 const SizedBox(height: 8),
-                _IndicatorGrid(
+                _IndicatorGrid(s: _s, 
                   power: power,
                   cycleCount: cycleCount,
                   soh: soh,
@@ -155,17 +159,20 @@ class _BatteryInfoContentState extends State<_BatteryInfoContent> {
             child: Column(
               children: [
                 SegmentedSwitch(
-                  segments: const ['单体电压', '温度', '状态位'],
+                  segments: [_s.battery.cellVoltage, _s.battery.temperature, _s.battery.statusBits],
                   selectedIndex: _segmentIndex,
                   onChanged: (i) => setState(() => _segmentIndex = i),
                 ),
                 const SizedBox(height: 16),
                 if (_segmentIndex == 0)
-                  CellVoltageGrid(cellVoltages: cellVoltages)
+                  CellVoltageGrid(s: _s,
+                    cellVoltages: cellVoltages,
+                    balancingCells: _parseBalancingCells(widget.afeStatus),
+                  )
                 else if (_segmentIndex == 1)
-                  TemperatureGrid(temperatures: temperatures)
+                  TemperatureGrid(s: _s, temperatures: temperatures)
                 else
-                  StatusBitPanel(
+                  StatusBitPanel(s: _s,
                     swFlags: swFlags,
                     hwFlags: hwFlags,
                     alarmFlags: alarmRaw,
@@ -191,6 +198,37 @@ class _BatteryInfoContentState extends State<_BatteryInfoContent> {
     return 0;
   }
 
+  /// 从 AFE Status 中解析均衡电芯索引（0-based）
+  Set<int> _parseBalancingCells(Map<String, dynamic>? afeStatus) {
+    if (afeStatus == null) return {};
+    final cells = <int>{};
+
+    for (int balanIdx = 1; balanIdx <= 3; balanIdx++) {
+      final raw = afeStatus['AFE1 CELL BALAN$balanIdx'];
+      int bits = 0;
+
+      if (raw is int) {
+        bits = raw;
+      } else if (raw is String && raw.startsWith('0x')) {
+        bits = int.tryParse(raw.substring(2), radix: 16) ?? 0;
+      } else if (raw is List) {
+        for (int i = 0; i < raw.length && i < 8; i++) {
+          if (raw[i] is Map && (raw[i]['value'] as num?)?.toInt() == 1) {
+            bits |= (1 << i);
+          }
+        }
+      }
+
+      final base = (balanIdx - 1) * 8;
+      for (int bit = 0; bit < 8; bit++) {
+        if ((bits >> bit) & 1 == 1) {
+          cells.add(base + bit);
+        }
+      }
+    }
+    return cells;
+  }
+
   String _formatBmsTime(Map<String, dynamic>? bmsTime) {
     if (bmsTime == null) return '';
     final t = bmsTime['BMS Time'];
@@ -200,6 +238,7 @@ class _BatteryInfoContentState extends State<_BatteryInfoContent> {
 
 /// 仪表盘区域（移除BmsData依赖，改用原始值）
 class BatteryGaugeSection extends StatelessWidget {
+  final AppStrings s;
   final int soc;
   final String chargeStatus;
   final double voltage;
@@ -208,6 +247,7 @@ class BatteryGaugeSection extends StatelessWidget {
 
   const BatteryGaugeSection({
     super.key,
+    required this.s,
     required this.soc,
     required this.chargeStatus,
     required this.voltage,
@@ -217,44 +257,53 @@ class BatteryGaugeSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
+    return Column(
       children: [
-        Center(
-          child: BatteryGauge(
-            soc: soc,
-            chargeStatus: chargeStatus,
-            size: 220,
+        // BMS 时间独立一行，右对齐，不再与仪表盘重叠
+        if (bmsTime.isNotEmpty)
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              bmsTime,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 13),
+            ),
           ),
-        ),
-        Positioned(
-          top: 0,
-          right: 4,
-          child: Text(
-            bmsTime,
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: Colors.grey[500], fontSize: 13),
-          ),
-        ),
-        Positioned(
-          top: 50,
-          left: 0,
-          child: _CornerLabel(
-            label: '电压',
-            value: voltage.toString(),
-            unit: 'V',
-          ),
-        ),
-        Positioned(
-          top: 50,
-          right: 0,
-          child: _CornerLabel(
-            label: '电流',
-            value: current.toString(),
-            unit: 'A',
-          ),
+        const SizedBox(height: 4),
+        // 仪表盘 + 电压/电流 叠加
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Center(
+              child: BatteryGauge(
+                soc: soc,
+                chargeStatus: chargeStatus,
+                size: 220,
+              ),
+            ),
+            Positioned(
+              top: 50,
+              left: 0,
+              child: _CornerLabel(
+                label: s.battery.voltage,
+                value: voltage.toStringAsFixed(3),
+                unit: 'V',
+              ),
+            ),
+            Positioned(
+              top: 50,
+              right: 0,
+              child: _CornerLabel(
+                label: s.battery.current,
+                value: current.toStringAsFixed(3),
+                unit: 'A',
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -284,6 +333,7 @@ class _CornerLabel extends StatelessWidget {
 }
 
 class _IndicatorGrid extends StatelessWidget {
+  final AppStrings s;
   final String power;
   final int cycleCount;
   final int soh;
@@ -293,6 +343,7 @@ class _IndicatorGrid extends StatelessWidget {
   final String? remainingTime;
 
   const _IndicatorGrid({
+    required this.s,
     required this.power,
     required this.cycleCount,
     required this.soh,
@@ -308,19 +359,19 @@ class _IndicatorGrid extends StatelessWidget {
       children: [
         Row(
           children: [
-            Expanded(child: _IndicatorCard(label: '功率', value: '${power}W')),
+            Expanded(child: _IndicatorCard(label: s.battery.power, value: '${power}W')),
             const SizedBox(width: 10),
-            Expanded(child: _IndicatorCard(label: '循环次数', value: '${cycleCount}次')),
+            Expanded(child: _IndicatorCard(label: s.battery.cycles, value: '$cycleCount${s.battery.cyclesUnit}')),
             const SizedBox(width: 10),
-            Expanded(child: _IndicatorCard(label: '电池健康', value: '$soh%')),
+            Expanded(child: _IndicatorCard(label: s.battery.health, value: '$soh%')),
           ],
         ),
         const SizedBox(height: 10),
         Row(
           children: [
-            Expanded(child: _IndicatorCard(label: '剩余容量', value: '${remainingCap}Ah')),
+            Expanded(child: _IndicatorCard(label: s.battery.remainingCap, value: '${remainingCap}Ah')),
             const SizedBox(width: 10),
-            Expanded(child: _IndicatorCard(label: '满充容量', value: '${fullCap}Ah')),
+            Expanded(child: _IndicatorCard(label: s.battery.fullCap, value: '${fullCap}Ah')),
             const SizedBox(width: 10),
             Expanded(
                 child: remainingTimeLabel != null && remainingTime != null
@@ -355,7 +406,8 @@ class _IndicatorCard extends StatelessWidget {
       child: Column(
         children: [
           Text(label,
-              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+              style: TextStyle(fontSize: 11,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center),
           const SizedBox(height: 4),
           Text(value,

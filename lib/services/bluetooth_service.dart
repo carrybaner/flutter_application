@@ -89,7 +89,13 @@ class BluetoothService {
     await Future.delayed(const Duration(milliseconds: 300));
 
     _device = BluetoothDevice(remoteId: DeviceIdentifier(deviceId));
-    await _device!.connect(timeout: const Duration(seconds: 10));
+
+
+    try {
+      await _device!.connect(timeout: const Duration(seconds: 10));
+    } catch (_) {
+      throw Exception('设备连接失败，请确认设备已上电且在附近');
+    }
     print('BLE: connected ${DateTime.now().difference(t0).inMilliseconds}ms');
 
     try { await _device!.requestMtu(255); } catch (_) {}
@@ -105,7 +111,7 @@ class BluetoothService {
         if (attempt < 3) {
           await Future.delayed(const Duration(milliseconds: 500));
         } else {
-          rethrow;
+          throw Exception('获取服务列表失败，请重试');
         }
       }
     }
@@ -117,8 +123,8 @@ class BluetoothService {
         if (u.contains('FF02')) { _writeCharId = c.uuid.str; _writeCharCached = c; }
       }
     }
-    if (_writeCharId == null) throw Exception('FF02 not found');
-    if (_notifyCharId == null) throw Exception('FF01 not found');
+    if (_writeCharId == null) throw Exception('未找到写特征值，协议不兼容');
+    if (_notifyCharId == null) throw Exception('未找到通知特征值，协议不兼容');
     print('BLE: services done ${DateTime.now().difference(t0).inMilliseconds}ms');
 
     await _enableNotify();
@@ -140,7 +146,7 @@ class BluetoothService {
       }
       if (i < 3) await Future.delayed(const Duration(milliseconds: 300));
     }
-    if (bundle == null) throw Exception('model fail');
+    if (bundle == null) throw Exception('取型号失败，请重试');
     print('BLE: model done ${DateTime.now().difference(t0).inMilliseconds}ms');
 
     // 监听断连

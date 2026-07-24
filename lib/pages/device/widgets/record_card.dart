@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../../models/abnormal_record.dart';
+import '../../../i18n/app_strings.dart';
 import '../../../models/safety_flags.dart';
 import '../../../theme/app_theme.dart';
 
 /// 异常记录卡片
 class RecordCard extends StatelessWidget {
+  final AppStrings s;
   final AbnormalRecord record;
-  const RecordCard({super.key, required this.record});
+  const RecordCard({super.key, required this.record, required this.s});
 
   String get _formatTime {
     final dt = record.timestamp;
@@ -52,7 +54,8 @@ class RecordCard extends StatelessWidget {
                   _formatTime,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                  style: TextStyle(fontSize: 11,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ),
               if (allFlags.isNotEmpty)
@@ -80,7 +83,7 @@ class RecordCard extends StatelessWidget {
                           ),
                           alignment: Alignment.center,
                           child: Text(
-                            f.label,
+                            f.displayLabel(s.locale == AppLocale.zh),
                             style: TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.w600,
@@ -107,15 +110,15 @@ class RecordCard extends StatelessWidget {
           Row(
             children: [
               _DataField(
-                  label: '电流', value: '${record.current.toString()}A'),
+                  label: s.record.current, value: '${record.current.toStringAsFixed(3)}A'),
               const SizedBox(width: 8),
               _DataField(
-                  label: '最高电压',
-                  value: '${record.maxVoltage.toString()}V'),
+                  label: s.record.maxVoltage,
+                  value: '${record.maxVoltage.toStringAsFixed(3)}V'),
               const SizedBox(width: 8),
               _DataField(
-                  label: '最低电压',
-                  value: '${record.minVoltage.toString()}V'),
+                  label: s.record.minVoltage,
+                  value: '${record.minVoltage.toStringAsFixed(3)}V'),
             ],
           ),
           const SizedBox(height: 6),
@@ -124,15 +127,15 @@ class RecordCard extends StatelessWidget {
           Row(
             children: [
               _DataField(
-                  label: 'MOS温度',
+                  label: s.record.mosTemp,
                   value: '${record.mosTemp.toStringAsFixed(1)}°C'),
               const SizedBox(width: 8),
               _DataField(
-                  label: '最高温度',
+                  label: s.record.maxTemp,
                   value: '${record.maxTemp.toStringAsFixed(1)}°C'),
               const SizedBox(width: 8),
               _DataField(
-                  label: '最低温度',
+                  label: s.record.minTemp,
                   value: '${record.minTemp.toStringAsFixed(1)}°C'),
             ],
           ),
@@ -154,7 +157,8 @@ class _DataField extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
-              style: TextStyle(fontSize: 10, color: Colors.grey[500])),
+              style: TextStyle(fontSize: 10,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
           const SizedBox(height: 2),
           Text(value,
               style: const TextStyle(

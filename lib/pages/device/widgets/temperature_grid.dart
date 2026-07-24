@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
+import '../../../i18n/app_strings.dart';
 
 /// 温度宫格（探头 + MOS）
 class TemperatureGrid extends StatelessWidget {
+  final AppStrings s;
   final Map<String, double> temperatures;
-  const TemperatureGrid({super.key, required this.temperatures});
+  const TemperatureGrid({super.key, required this.temperatures, required this.s});
 
   Color _tempColor(double temp) {
     if (temp > 45) return AppColors.socRed;
@@ -15,7 +17,7 @@ class TemperatureGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (temperatures.isEmpty) {
-      return const Text('无数据', style: TextStyle(color: Colors.grey));
+      return Text(s.battery.noData, style: const TextStyle(color: Colors.grey));
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -52,7 +54,8 @@ class TemperatureGrid extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 label,
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                style: TextStyle(fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 4),
               Text(

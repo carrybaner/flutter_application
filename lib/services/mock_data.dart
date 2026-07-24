@@ -64,9 +64,9 @@ class MockData {
     return BmsData(
       bmsTime: DateTime.now(),
       soc: soc,
-      voltage: double.parse(voltage.toStringAsFixed(2)),
-      current: double.parse(current.toStringAsFixed(2)),
-      power: double.parse((voltage * current.abs()).toStringAsFixed(1)),
+      voltage: double.parse(voltage.toStringAsFixed(3)),
+      current: double.parse(current.toStringAsFixed(3)),
+      power: double.parse((voltage * current.abs()).toStringAsFixed(0)),
       cycleCount: 100 + _random.nextInt(900),
       batteryHealth: 85 + _random.nextInt(16),
       remainingCapacity: double.parse((40 + _random.nextDouble() * 20).toStringAsFixed(1)),

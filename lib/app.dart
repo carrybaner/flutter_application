@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'theme/app_theme.dart';
 import 'providers/theme_provider.dart';
+import 'i18n/locale_provider.dart';
 import 'pages/bluetooth/bluetooth_page.dart';
+import 'pages/scan/scan_page.dart';
+import 'pages/extensions/extensions_page.dart';
 
 /// 应用入口
 class BmsApp extends ConsumerWidget {
@@ -34,34 +37,47 @@ class MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<MainShell> {
   int _currentIndex = 0;
+  final _scanActiveNotifier = ValueNotifier<bool>(false);
 
-  final _pages = const [
-    BluetoothPage(),
-    _PlaceholderPage(icon: Icons.qr_code_scanner, title: '扫码'),
-    _PlaceholderPage(icon: Icons.widgets, title: '扩展'),
+  late final _pages = [
+    const BluetoothPage(),
+    ScanPage(isActiveNotifier: _scanActiveNotifier),
+    const ExtensionsPage(),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final s = ref.watch(localeProvider);
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
         children: _pages,
       ),
       bottomNavigationBar: _FrostedNavBar(
+          labels: [s.shell.tabBt, s.shell.tabScan, s.shell.tabMore],
         currentIndex: _currentIndex,
-        onTap: (i) => setState(() => _currentIndex = i),
+        onTap: (i) => setState(() {
+          _currentIndex = i;
+          _scanActiveNotifier.value = i == 1;
+        }),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _scanActiveNotifier.dispose();
+    super.dispose();
   }
 }
 
 /// 磨砂玻璃底部导航栏
 class _FrostedNavBar extends StatelessWidget {
+  final List<String> labels;
   final int currentIndex;
   final ValueChanged<int> onTap;
 
-  const _FrostedNavBar({required this.currentIndex, required this.onTap});
+  const _FrostedNavBar({required this.currentIndex, required this.onTap, required this.labels});
 
   @override
   Widget build(BuildContext context) {
@@ -88,19 +104,19 @@ class _FrostedNavBar extends StatelessWidget {
               children: [
                 _NavItem(
                   icon: Icons.bluetooth,
-                  label: '蓝牙',
+                  label: labels[0],
                   isSelected: currentIndex == 0,
                   onTap: () => onTap(0),
                 ),
                 _NavItem(
                   icon: Icons.qr_code_scanner,
-                  label: '扫码',
+                  label: labels[1],
                   isSelected: currentIndex == 1,
                   onTap: () => onTap(1),
                 ),
                 _NavItem(
                   icon: Icons.widgets,
-                  label: '扩展',
+                  label: labels[2],
                   isSelected: currentIndex == 2,
                   onTap: () => onTap(2),
                 ),
@@ -194,13 +210,14 @@ class _PlaceholderPage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 64, color: Colors.grey[400]),
+            Icon(icon, size: 64,
+                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5)),
             const SizedBox(height: 16),
             Text(title,
                 style: Theme.of(context)
                     .textTheme
                     .titleLarge
-                    ?.copyWith(color: Colors.grey[600])),
+                    ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
           ],
         ),
       ),
