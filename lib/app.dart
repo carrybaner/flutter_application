@@ -17,7 +17,7 @@ class BmsApp extends ConsumerWidget {
     final themeMode = ref.watch(themeProvider);
 
     return MaterialApp(
-      title: '小龙电动',
+      title: const String.fromEnvironment('APP_LABEL', defaultValue: '畅烁锂电'),
       debugShowCheckedModeBanner: false,
       theme: lightTheme(),
       darkTheme: darkTheme(),
