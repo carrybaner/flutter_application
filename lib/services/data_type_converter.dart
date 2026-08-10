@@ -24,6 +24,7 @@ class DataTypeConverter {
   /// 例: "01020304" → "02010403"
   static String twoExchange(String hexStr) {
     final clean = cleanHexStr(hexStr);
+    if (clean.length < 4) return clean; // 单字节无需交换
     final buf = StringBuffer();
     for (int i = 0; i < clean.length; i += 4) {
       final b1 = clean.substring(i, i + 2);

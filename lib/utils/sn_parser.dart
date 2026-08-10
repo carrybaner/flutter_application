@@ -36,10 +36,9 @@ class SnParser {
   }
 
   /// 检查是否像合法的 SN/设备名
+  /// 允许大小写字母、数字、常见符号（+ - _ : 空格）
   static bool _isValidSn(String s) {
-    if (s.length < 6) return false;
-    // 典型格式: DCSF-3998260707064 或 DCSF_A12345678 或 纯数字字母
-    final cleaned = s.replaceAll(RegExp(r'^DCSF[_\-:+\s]?'), '');
-    return cleaned.length >= 5 && RegExp(r'^[0-9A-Fa-f]+$').hasMatch(cleaned);
+    if (s.length < 4) return false;
+    return RegExp(r'^[A-Za-z0-9_\-:+\s]+$').hasMatch(s);
   }
 }

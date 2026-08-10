@@ -102,10 +102,14 @@ class _ParamInputFieldState extends State<ParamInputField> {
               child: TextField(
                 controller: _ctrl,
                 focusNode: _focusNode,
+                readOnly: p.readOnly,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true, signed: true),
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: p.readOnly ? Colors.grey : null),
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),

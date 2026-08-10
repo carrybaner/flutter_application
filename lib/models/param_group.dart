@@ -7,6 +7,7 @@ class ParamItem {
   final double maxValue;
   final double step;
   final String? displayText; // 非空时优先显示（HEX/2HEX 类型）
+  final bool readOnly; // 只读字段禁用输入
 
   const ParamItem({
     required this.name,
@@ -16,6 +17,7 @@ class ParamItem {
     this.maxValue = 100,
     this.step = 0.01,
     this.displayText,
+    this.readOnly = false,
   });
 
   ParamItem copyWith({double? currentValue}) {

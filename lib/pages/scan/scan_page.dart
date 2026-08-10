@@ -264,11 +264,22 @@ class _ScanPageState extends ConsumerState<ScanPage>
   DeviceModel? _findDevice(String sn) {
     final upperSn = sn.toUpperCase();
 
+    // 剥离 SN 中的已知前缀（DCSF/BMS + 分隔符），用于跨前缀匹配
+    // 例：QR 中是 "BMS+7003260715056"，BLE 广播是 "DCSF-7003260715056"
+    final snCore = sn.replaceAll(RegExp(r'^(?:DCSF|BMS)[_\-:+\s]?'), '').toUpperCase();
+
     for (final d in _devices) {
-      if (d.name.toUpperCase() == upperSn) return d;
-      if (d.displayName.toUpperCase() == upperSn) return d;
-      if (d.name.toUpperCase().endsWith(upperSn)) return d;
-      if (upperSn.length >= 8 && d.name.toUpperCase().contains(upperSn)) return d;
+      final dName = d.name.toUpperCase();
+      final dDisp = d.displayName.toUpperCase();
+
+      if (dName == upperSn) return d;
+      if (dDisp == upperSn) return d;
+      if (dName.endsWith(upperSn)) return d;
+      // 跨前缀匹配：用 SN 核心数字部分匹配
+      if (dDisp == snCore) return d;
+      if (dName.endsWith(snCore)) return d;
+      if (upperSn.length >= 5 && dName.contains(upperSn)) return d;
+      if (snCore.length >= 5 && dName.contains(snCore)) return d;
     }
     return null;
   }

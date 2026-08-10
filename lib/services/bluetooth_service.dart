@@ -18,7 +18,11 @@ class BluetoothService {
   final Map<String, DeviceModel> _devices = {};
   StreamSubscription<List<ScanResult>>? _scanSub;
 
-  static const String deviceNameFilter = 'DCSF';
+  // BLE 扫描 — 接受 DCSF 或 BMS 前缀的设备名
+  bool _isTargetDevice(String name) {
+    final upper = name.toUpperCase();
+    return upper.contains('DCSF') || upper.contains('BMS');
+  }
 
   Future<void> startScan() async {
     if (FlutterBluePlus.isScanningNow) await FlutterBluePlus.stopScan();
@@ -28,7 +32,7 @@ class BluetoothService {
     _scanSub = FlutterBluePlus.scanResults.listen((results) {
       for (final r in results) {
         final name = r.advertisementData.advName;
-        if (name.isEmpty || !name.toUpperCase().contains(deviceNameFilter)) continue;
+        if (name.isEmpty || !_isTargetDevice(name)) continue;
         final id = r.device.remoteId.str;
         final adv = _parseAdData(r);
         final d = DeviceModel(deviceId: id, name: name, rssi: r.rssi, advData: adv);

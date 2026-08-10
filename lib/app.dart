@@ -10,14 +10,15 @@ import 'pages/extensions/extensions_page.dart';
 
 /// 应用入口
 class BmsApp extends ConsumerWidget {
-  const BmsApp({super.key});
+  final String title;
+  const BmsApp({super.key, required this.title});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeProvider);
 
     return MaterialApp(
-      title: const String.fromEnvironment('APP_LABEL', defaultValue: '畅烁锂电'),
+      title: title,
       debugShowCheckedModeBanner: false,
       theme: lightTheme(),
       darkTheme: darkTheme(),

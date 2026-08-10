@@ -31,6 +31,9 @@ dependencies:
 
   # 工具 (collection 由 Flutter SDK 内置，无需显式声明)
 
+  # 文件分享
+  share_plus: ^7.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

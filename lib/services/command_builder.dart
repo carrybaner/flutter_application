@@ -142,7 +142,43 @@ class CommandBuilder {
     dynamic newValue,
     dynamic pairedValue,
   ) {
-    final pairIndex = (fieldIndex % 2 == 0) ? fieldIndex + 1 : fieldIndex - 1;
+    // 按寄存器偏移找真正的配对（同一寄存器内的另一个 Length=1 字段）
+    int targetReg = 0;
+    for (int k = 0; k < fieldIndex; k++) { targetReg += fields[k].length; }
+    targetReg ~/= 2;
+    int pairIndex = -1;
+    for (int j = 0; j < fields.length; j++) {
+      if (j == fieldIndex || fields[j].length != 1) continue;
+      int regJ = 0;
+      for (int k = 0; k < j; k++) { regJ += fields[k].length; }
+      regJ ~/= 2;
+      if (regJ == targetReg) { pairIndex = j; break; }
+    }
+    // 无配对 → 虚拟配对，高位补 00
+    if (pairIndex < 0) {
+      final f = fields[fieldIndex];
+      var fHex = _reverseConvertField(newValue, f);
+      fHex = fHex.padLeft(2, '0');
+      final combined = '00$fHex';
+      final le = DataTypeConverter.littleEndian(combined);
+      final te = DataTypeConverter.twoExchange(le);
+
+      double regAddr = int.parse(_stripHex(header.registerAddress!), radix: 16).toDouble();
+      for (int i = 0; i < fieldIndex; i++) {
+        regAddr += fields[i].length / 2.0;
+      }
+      final regAddress = regAddr.round();
+      final height6 = int.parse(_stripHex(header.registerCode!), radix: 16)
+          .toRadixString(2).padLeft(6, '0');
+      final low10Bin = int.parse(
+              regAddress.toUnsigned(16).toRadixString(16).padLeft(4, '0'), radix: 16)
+          .toRadixString(2).padLeft(10, '0');
+      final addrHex = int.parse(height6 + low10Bin, radix: 2)
+          .toRadixString(16).padLeft(4, '0');
+      final cmd = '$_flagNum$_writeFuncFlag$addrHex${'0001'}$te';
+      final crc = Crc16Utils.calculate(cmd);
+      return cmd + crc;
+    }
     final evenIndex = fieldIndex < pairIndex ? fieldIndex : pairIndex;
     final oddIndex = fieldIndex < pairIndex ? pairIndex : fieldIndex;
 
@@ -216,6 +252,86 @@ class CommandBuilder {
   }
 
   // ============================================================
+  // 整组写命令
+  // ============================================================
+
+  /// 构建整组写命令 — 将 group 的全部可写字段打包为一条 BLE 指令
+  ///
+  /// [rawValues] 与 group.fields 一一对应，值为 num（显示值）或 hex 字符串
+  /// [startFieldIndex] / [endFieldIndex] 可选，指定字段子集（endFieldIndex exclusive）
+  static String buildGroupWriteCommand(
+    ProtocolGroup group,
+    List<dynamic> rawValues, {
+    int startFieldIndex = 0,
+    int endFieldIndex = -1,
+  }) {
+    final header = group.header;
+    final fields = group.fields;
+    final endIdx = endFieldIndex < 0 ? fields.length : endFieldIndex;
+
+    final regCode = int.parse(_stripHex(header.registerCode!), radix: 16);
+    final baseRegAddr = int.parse(_stripHex(header.registerAddress!), radix: 16);
+    // 计算 startFieldIndex 之前所有字段占用的寄存器数，得到地址偏移
+    int addrOffset = 0;
+    for (int j = 0; j < startFieldIndex; j++) {
+      if (fields[j].type == 'r') continue;
+      addrOffset += fields[j].length;
+    }
+    final addr = ((regCode << 10) | (baseRegAddr + addrOffset ~/ 2))
+        .toRadixString(16)
+        .padLeft(4, '0');
+
+    // 逐字段编码 + 配对合并（每字段独立 littleEndian + twoExchange）
+    final hexParts = <String>[];
+    int i = startFieldIndex;
+    while (i < endIdx) {
+      final f = fields[i];
+
+      // 跳过只读字段
+      if (f.type == 'r') {
+        i++;
+        continue;
+      }
+
+      var hex = _reverseConvertField(rawValues[i], f);
+      hex = hex.padLeft(f.length * 2, '0');
+
+      if (f.length == 1 && i + 1 < endIdx && fields[i + 1].type != 'r') {
+        // 有配对: 高字节(odd) + 低字节(even) → LE → TE
+        final next = fields[i + 1];
+        var nextHex = _reverseConvertField(rawValues[i + 1], next);
+        nextHex = nextHex.padLeft(next.length * 2, '0');
+        hex = nextHex + hex;
+        hex = DataTypeConverter.littleEndian(hex);
+        hex = DataTypeConverter.twoExchange(hex);
+        i += 2;
+      } else if (f.length == 1) {
+        // 无配对 Length=1: 高位补 00 → 合并 → LE → TE
+        hex = '00' + hex;
+        hex = DataTypeConverter.littleEndian(hex);
+        hex = DataTypeConverter.twoExchange(hex);
+        i++;
+      } else {
+        // Length >= 2: 独立 LE → TE
+        hex = DataTypeConverter.littleEndian(hex);
+        hex = DataTypeConverter.twoExchange(hex);
+        i++;
+      }
+      hexParts.add(hex);
+    }
+
+    final dataHex = hexParts.join();
+
+    final regCount = (dataHex.length ~/ 4)
+        .toRadixString(16)
+        .padLeft(4, '0');
+
+    final cmd = '$_flagNum$_writeFuncFlag$addr$regCount$dataHex';
+    final crc = Crc16Utils.calculate(cmd);
+    return cmd + crc;
+  }
+
+  // ============================================================
   // 扩展指令（固定命令）
   // ============================================================
 
@@ -236,13 +352,11 @@ class CommandBuilder {
     final minute = now.minute.toRadixString(16).padLeft(2, '0');
     final second = now.second.toRadixString(16).padLeft(2, '0');
     final day = now.day.toRadixString(16).padLeft(2, '0');
-    final hour12 = (now.hour > 12 ? now.hour - 12 : now.hour)
-        .toRadixString(16)
-        .padLeft(2, '0');
+    final hour24 = now.hour.toRadixString(16).padLeft(2, '0');
     final year = (now.year - 2000).toRadixString(16).padLeft(2, '0');
     final month = now.month.toRadixString(16).padLeft(2, '0');
 
-    var cmd = '0010C0000003$minute$second$day$hour12$year$month';
+    var cmd = '0010C0000003$minute$second$day$hour24$year$month';
     cmd = cmd.toUpperCase();
     final crc = Crc16Utils.calculate(cmd);
     return cmd + crc;
