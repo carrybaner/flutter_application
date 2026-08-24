@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../providers/device_data_provider.dart' show realtimeDataProvider;
+import '../../../providers/device_data_provider.dart' show realtimeDataProvider, connectionResultProvider;
 import '../../../i18n/app_strings.dart';
 import '../../../i18n/locale_provider.dart';
 import '../../../theme/app_theme.dart';
@@ -22,6 +22,7 @@ class BatteryInfoTab extends ConsumerWidget {
     final tempCh = data['Tempe CH'];
     final afeStatus = data['AFE Status'];
     final bmsTime = data['BMS Time'];
+    final version = ref.watch(connectionResultProvider)?.version ?? '';
 
     if (batteryInfo == null) {
       return const Center(child: CircularProgressIndicator());
@@ -33,6 +34,7 @@ class BatteryInfoTab extends ConsumerWidget {
       tempCh: tempCh,
       afeStatus: afeStatus,
       bmsTime: bmsTime,
+      version: version,
     );
   }
 }
@@ -43,6 +45,7 @@ class _BatteryInfoContent extends ConsumerStatefulWidget {
   final Map<String, dynamic>? tempCh;
   final Map<String, dynamic>? afeStatus;
   final Map<String, dynamic>? bmsTime;
+  final String version;
 
   const _BatteryInfoContent({
     required this.batteryInfo,
@@ -50,6 +53,7 @@ class _BatteryInfoContent extends ConsumerStatefulWidget {
     this.tempCh,
     this.afeStatus,
     this.bmsTime,
+    this.version = '',
   });
 
   @override
@@ -138,6 +142,7 @@ class _BatteryInfoContentState extends ConsumerState<_BatteryInfoContent> {
                   voltage: voltage,
                   current: current,
                   bmsTime: _formatBmsTime(widget.bmsTime),
+                  version: widget.version,
                 ),
                 const SizedBox(height: 8),
                 _IndicatorGrid(s: _s, 
@@ -244,6 +249,7 @@ class BatteryGaugeSection extends StatelessWidget {
   final double voltage;
   final double current;
   final String bmsTime;
+  final String version;
 
   const BatteryGaugeSection({
     super.key,
@@ -253,25 +259,39 @@ class BatteryGaugeSection extends StatelessWidget {
     required this.voltage,
     required this.current,
     required this.bmsTime,
+    this.version = '',
   });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // BMS 时间独立一行，右对齐，不再与仪表盘重叠
-        if (bmsTime.isNotEmpty)
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              bmsTime,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 13),
-            ),
+        // 版本在最左、BMS 时间在右，独立一行，不再与仪表盘重叠
+        if (bmsTime.isNotEmpty || version.isNotEmpty)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              if (version.isNotEmpty)
+                Text(
+                  '${s.battery.version}$version',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontSize: 13),
+                ),
+              if (bmsTime.isNotEmpty)
+                Text(
+                  bmsTime,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontSize: 13),
+                ),
+            ],
           ),
         const SizedBox(height: 4),
         // 仪表盘 + 电压/电流 叠加

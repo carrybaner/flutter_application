@@ -140,12 +140,15 @@ class BluetoothService {
     // 重试取型号，直到加载到有效协议
     ProtocolDataBundle? bundle;
     String? protocolId;
+    String version = '';
     for (int i = 1; i <= 3; i++) {
       final t1 = DateTime.now();
-      protocolId = await _sendModelCommandAndRead();
-      print('BLE: model try$i ${protocolId} ${DateTime.now().difference(t1).inMilliseconds}ms');
-      if (protocolId != null && protocolId.isNotEmpty) {
-        bundle = await ProtocolRepository.instance.loadProtocol(protocolId);
+      final model = await _sendModelCommandAndRead();
+      print('BLE: model try$i ${model?.protocolId} ${DateTime.now().difference(t1).inMilliseconds}ms');
+      if (model != null && model.protocolId.isNotEmpty) {
+        protocolId = model.protocolId;
+        version = model.version;
+        bundle = await ProtocolRepository.instance.loadProtocol(model.protocolId);
         if (bundle != null) break;
       }
       if (i < 3) await Future.delayed(const Duration(milliseconds: 300));
@@ -163,7 +166,7 @@ class BluetoothService {
 
     protocolBundle = bundle;
     print('BLE: total ${DateTime.now().difference(t0).inMilliseconds}ms');
-    return ConnectionResult(protocolId: protocolId!, bundle: bundle);
+    return ConnectionResult(protocolId: protocolId!, bundle: bundle, version: version);
   }
 
   // ──────── 启用 Notify ────────
@@ -181,8 +184,8 @@ class BluetoothService {
 
   // ──────── 取型号：先订阅再发送（与原始 _sendModelCommand 逻辑一致）────────
 
-  Future<String?> _sendModelCommandAndRead() async {
-    final completer = Completer<String?>();
+  Future<_ModelQueryResult?> _sendModelCommandAndRead() async {
+    final completer = Completer<_ModelQueryResult?>();
     late StreamSubscription<String> sub;
     late Timer timer;
 
@@ -194,13 +197,19 @@ class BluetoothService {
       final dataPart = clean.substring(0, clean.length - 4);
       if (Crc16Utils.calculate(dataPart) != clean.substring(clean.length - 4)) return;
       final funcCode = int.parse(clean.substring(2, 4), radix: 16);
-      if (funcCode & 0x80 != 0) { completer.complete(''); return; }
+      if (funcCode & 0x80 != 0) { completer.complete(null); return; }
       if (funcCode != 0x03) return;
-      completer.complete(clean.substring(6, clean.length - 4).substring(0, 4));
+
+      // 数据区（跳过 地址+功能码+字节数 = 6字符，去掉末尾 CRC = 4字符）
+      final data = clean.substring(6, clean.length - 4);
+      // 寄存器1 = 型号，寄存器2 = 版本
+      final protocolId = data.length >= 4 ? data.substring(0, 4) : '';
+      final version = data.length >= 8 ? data.substring(4, 8) : '';
+      completer.complete(_ModelQueryResult(protocolId: protocolId, version: version));
     });
 
     timer = Timer(const Duration(seconds: 3), () {
-      if (!completer.isCompleted) completer.complete('');
+      if (!completer.isCompleted) completer.complete(null);
     });
 
     try {
@@ -211,7 +220,7 @@ class BluetoothService {
       await _writeCharCached!.write(bytes, withoutResponse: true);
 
       final result = await completer.future;
-      return (result != null && result.isNotEmpty) ? result : null;
+      return (result != null && result.protocolId.isNotEmpty) ? result : null;
     } finally {
       sub.cancel();
       timer.cancel();
@@ -254,6 +263,19 @@ class BluetoothService {
 class ConnectionResult {
   final String protocolId;
   final ProtocolDataBundle bundle;
+  final String version;
 
-  const ConnectionResult({required this.protocolId, required this.bundle});
+  const ConnectionResult({
+    required this.protocolId,
+    required this.bundle,
+    this.version = '',
+  });
+}
+
+/// 取型号命令的响应结果（型号 + 版本）
+class _ModelQueryResult {
+  final String protocolId;
+  final String version;
+
+  const _ModelQueryResult({required this.protocolId, required this.version});
 }
