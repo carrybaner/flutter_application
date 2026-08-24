@@ -39,7 +39,6 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: stable
           cache: true
 
       - name: 安装依赖
