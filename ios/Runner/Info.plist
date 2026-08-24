@@ -45,6 +45,8 @@
 	<string>需要使用蓝牙来扫描和连接 BMS 电池设备</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>需要使用蓝牙来扫描和连接 BMS 电池设备</string>
+	<key>NSCameraUsageDescription</key>
+	<string>用于扫描电池设备二维码信息</string>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>

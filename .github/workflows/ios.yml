@@ -1,0 +1,81 @@
+# iOS Release 打包 & 上传 TestFlight
+#
+# 触发方式：
+#   1. 手动触发：GitHub 仓库 → Actions → "iOS Release" → Run workflow
+#   2. 推送 tag（v* 开头，如 v1.0.1）时自动触发
+#
+# 前置要求：见 docs/ios-ci-接入指南.md
+# 需要的 GitHub Secrets：
+#   CERTIFICATE_P12_BASE64          发布证书 .p12 的 base64
+#   CERTIFICATE_PASSWORD            .p12 密码
+#   PROVISIONING_PROFILE_BASE64     发布用 Provisioning Profile (.mobileprovision) 的 base64
+#   TEAM_ID                         Apple Developer Team ID
+#   APPSTORE_API_KEY_ID             App Store Connect API Key ID（形如 A1B2C3D4E5）
+#   APPSTORE_API_ISSUER_ID          App Store Connect API Issuer ID（UUID）
+#   APPSTORE_API_KEY_FILE_BASE64    App Store Connect API 私钥 .p8 文件的 base64
+
+name: iOS Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: ios-build
+  cancel-in-progress: false
+
+jobs:
+  build-and-upload:
+    name: 构建并上传 TestFlight
+    runs-on: macos-13
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Flutter (3.10.0)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.10.0
+          cache: true
+
+      - name: 安装依赖
+        run: flutter pub get
+
+      - name: 导入签名证书
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.CERTIFICATE_P12_BASE64 }}
+          p12-password: ${{ secrets.CERTIFICATE_PASSWORD }}
+
+      - name: 安装 Provisioning Profile
+        run: |
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          echo "${{ secrets.PROVISIONING_PROFILE_BASE64 }}" | base64 --decode > "$HOME/Library/MobileDevice/Provisioning Profiles/BMS_distribution.mobileprovision"
+
+      - name: 准备 App Store Connect API 密钥
+        run: |
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          echo "${{ secrets.APPSTORE_API_KEY_FILE_BASE64 }}" | base64 --decode > "$HOME/.appstoreconnect/private_keys/${{ secrets.APPSTORE_API_KEY_ID }}.p8"
+
+      - name: 构建 Release IPA
+        run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+
+      - name: 上传 IPA 产物（失败也能保留）
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS-IPA
+          path: build/ios/ipa/*.ipa
+          if-no-files-found: error
+
+      - name: 上传到 TestFlight
+        run: |
+          xcrun altool --upload-app \
+            -f "$(ls build/ios/ipa/*.ipa)" \
+            --type ios \
+            --apiKey "${{ secrets.APPSTORE_API_KEY_ID }}" \
+            --apiIssuer "${{ secrets.APPSTORE_API_ISSUER_ID }}" \
+            --verbose
