@@ -29,17 +29,17 @@ concurrency:
 jobs:
   build-and-upload:
     name: 构建并上传 TestFlight
-    runs-on: macos-13
+    runs-on: macos-15
 
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 安装 Flutter (3.10.0)
+      - name: 安装 Flutter (最新稳定版)
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.10.0
+          flutter-version: stable
           cache: true
 
       - name: 安装依赖
