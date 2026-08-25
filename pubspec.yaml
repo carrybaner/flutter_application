@@ -24,7 +24,7 @@ dependencies:
   shared_preferences: ^2.2.0
 
   # 权限
-  permission_handler: ^10.4.0
+  permission_handler: ^13.0.1
 
   # 扫码
   mobile_scanner: ^3.5.0
