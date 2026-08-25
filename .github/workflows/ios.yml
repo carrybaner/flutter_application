@@ -29,7 +29,7 @@ concurrency:
 jobs:
   build-and-upload:
     name: 构建并上传 TestFlight
-    runs-on: macos-15
+    runs-on: macos-26
 
     steps:
       - name: 检出代码
