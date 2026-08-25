@@ -58,7 +58,7 @@ jobs:
       - name: 准备 App Store Connect API 密钥
         run: |
           mkdir -p "$HOME/.appstoreconnect/private_keys"
-          echo "${{ secrets.APPSTORE_API_KEY_FILE_BASE64 }}" | base64 --decode > "$HOME/.appstoreconnect/private_keys/${{ secrets.APPSTORE_API_KEY_ID }}.p8"
+          echo "${{ secrets.APPSTORE_API_KEY_FILE_BASE64 }}" | base64 --decode > "$HOME/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_API_KEY_ID }}.p8"
 
       - name: 构建 Release IPA
         run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
