@@ -59,5 +59,7 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>用于选择要导入的配置文件</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>用于扫描和连接蓝牙电池管理设备</string>
 </dict>
 </plist>
