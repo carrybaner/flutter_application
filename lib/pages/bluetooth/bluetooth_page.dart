@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart'
+    hide BluetoothService;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../models/device_model.dart';
@@ -24,6 +26,7 @@ class _BluetoothPageState extends ConsumerState<BluetoothPage>
     with TickerProviderStateMixin {
   final _service = BluetoothService.instance;
   StreamSubscription<DeviceModel>? _sub;
+  StreamSubscription<BluetoothAdapterState>? _adapterSub;
 
   final List<DeviceModel> _devices = [];
   AppStrings _s = AppStrings.zh;
@@ -69,6 +72,17 @@ class _BluetoothPageState extends ConsumerState<BluetoothPage>
       });
     });
 
+    // 蓝牙就绪守卫：等 adapter on 再扫描
+    // （iOS 首次启动 CoreBluetooth 异步初始化 + 权限授权需时间，直接扫描会静默失败）
+    final ready = await _service.waitBluetoothReady();
+    if (!mounted) return;
+    if (!ready) {
+      setState(() => _isScanning = false);
+      _showBluetoothNotReady();
+      _watchAdapterAutoRescan();
+      return;
+    }
+
     setState(() => _isScanning = true);
     _refreshAnimCtrl.repeat();
 
@@ -76,6 +90,38 @@ class _BluetoothPageState extends ConsumerState<BluetoothPage>
       await _service.startScan(); // 不设 timeout，持续扫描直到 stopScan
     } catch (_) {}
     // 只有 stopScan 被调用才会到达这里
+  }
+
+  /// 蓝牙未就绪提示（蓝牙关闭 / 权限未授权）
+  void _showBluetoothNotReady() {
+    if (!mounted) return;
+    final s = ref.read(localeProvider);
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(s.bluetooth.bluetoothNotReady),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  /// 监听蓝牙适配器状态：蓝牙变为 on 后自动重扫（仅触发一次，成功后取消）
+  void _watchAdapterAutoRescan() {
+    _adapterSub?.cancel();
+    _adapterSub = _service.adapterStateStream.listen((state) {
+      if (!mounted) return;
+      if (state == BluetoothAdapterState.on) {
+        _adapterSub?.cancel();
+        _adapterSub = null;
+        _startScan();
+      } else if (state == BluetoothAdapterState.off) {
+        // 蓝牙被关闭 → 停止扫描动画
+        _refreshAnimCtrl.stop();
+        _refreshAnimCtrl.reset();
+        if (_isScanning) setState(() => _isScanning = false);
+      }
+    });
   }
 
   void _onDeviceTap(DeviceModel device) async {
@@ -160,6 +206,7 @@ class _BluetoothPageState extends ConsumerState<BluetoothPage>
   @override
   void dispose() {
     _sub?.cancel();
+    _adapterSub?.cancel();
     _service.stopScan();
     _refreshAnimCtrl.dispose();
     super.dispose();

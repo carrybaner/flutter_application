@@ -18,13 +18,43 @@ class BluetoothService {
   final Map<String, DeviceModel> _devices = {};
   StreamSubscription<List<ScanResult>>? _scanSub;
 
-  // BLE 扫描 — 接受 DCSF 或 BMS 前缀的设备名
+  // ──────── 蓝牙适配器状态 ────────
+
+  /// 当前蓝牙适配器是否就绪
+  bool get isBluetoothReady =>
+      FlutterBluePlus.adapterStateNow == BluetoothAdapterState.on;
+
+  /// 蓝牙适配器状态流（页面用于提示 / 自动重扫）
+  Stream<BluetoothAdapterState> get adapterStateStream =>
+      FlutterBluePlus.adapterState;
+
+  /// 等待蓝牙适配器就绪（on 状态）。超时返回 false，由调用方提示并自动重扫。
+  ///
+  /// iOS 首次启动 CoreBluetooth 为异步初始化，权限授权 + 蓝牙开关就绪需要时间，
+  /// 直接 startScan 会静默失败（被调用方的 try/catch 吞掉）。
+  Future<bool> waitBluetoothReady({
+    Duration timeout = const Duration(seconds: 8),
+  }) async {
+    if (isBluetoothReady) return true;
+    try {
+      await FlutterBluePlus.adapterState
+          .firstWhere((s) => s == BluetoothAdapterState.on)
+          .timeout(timeout);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // BLE 扫描 — 只接受 DCSF 前缀的设备名
   bool _isTargetDevice(String name) {
     final upper = name.toUpperCase();
-    return upper.contains('DCSF') || upper.contains('BMS');
+    return upper.contains('DCSF');
   }
 
   Future<void> startScan() async {
+    // 蓝牙适配器未就绪则不启动扫描（iOS 首次启动 CoreBluetooth 异步初始化）
+    if (!await waitBluetoothReady()) return;
     if (FlutterBluePlus.isScanningNow) await FlutterBluePlus.stopScan();
     _devices.clear();
 

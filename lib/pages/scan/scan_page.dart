@@ -143,7 +143,16 @@ class _ScanPageState extends ConsumerState<ScanPage>
     });
 
     setState(() => _isScanning = true);
-    _service.startScan().catchError((_) {});
+    // 蓝牙就绪守卫：等 adapter on 再启动扫描（iOS 首次初始化需时间）
+    _service.waitBluetoothReady().then((ready) {
+      if (!mounted) return;
+      if (!ready) {
+        setState(() => _isScanning = false);
+        _showSnackBar(_s.bluetooth.bluetoothNotReady);
+        return;
+      }
+      _service.startScan().catchError((_) {});
+    });
   }
 
   // ──── QR 检测 ────

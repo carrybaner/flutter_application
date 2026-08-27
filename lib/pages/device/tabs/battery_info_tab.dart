@@ -128,6 +128,11 @@ class _BatteryInfoContentState extends ConsumerState<_BatteryInfoContent> {
     final hwFlags = _extractBitFlags(afeData);
     final alarmRaw = _extractBitFlags(alarmData);
 
+    // 充放电 MOS 状态（来自 AFE Status 状态位：bit0=CHG_FET, bit1=DSG_FET）
+    final afeRaw = _afeRawValue(widget.afeStatus?['AFE Status']);
+    final chargeMosOn = (afeRaw != null) && ((afeRaw >> 0) & 1) == 1;
+    final dischargeMosOn = (afeRaw != null) && ((afeRaw >> 1) & 1) == 1;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -136,16 +141,17 @@ class _BatteryInfoContentState extends ConsumerState<_BatteryInfoContent> {
           _SectionCard(
             child: Column(
               children: [
-                BatteryGaugeSection(s: _s, 
+                BatteryGaugeSection(s: _s,
                   soc: soc,
                   chargeStatus: chargeStatus,
                   voltage: voltage,
                   current: current,
                   bmsTime: _formatBmsTime(widget.bmsTime),
                   version: widget.version,
+                  chargeMosOn: chargeMosOn,
+                  dischargeMosOn: dischargeMosOn,
                 ),
-                const SizedBox(height: 8),
-                _IndicatorGrid(s: _s, 
+                _IndicatorGrid(s: _s,
                   power: power,
                   cycleCount: cycleCount,
                   soh: soh,
@@ -203,6 +209,26 @@ class _BatteryInfoContentState extends ConsumerState<_BatteryInfoContent> {
     return 0;
   }
 
+  /// 从 AFE Status 原始值提取整数（兼容 int / 0x hex / BitDesc List 三种格式）
+  int? _afeRawValue(dynamic afeData) {
+    if (afeData is int) return afeData;
+    if (afeData is String && afeData.startsWith('0x')) {
+      return int.tryParse(afeData.substring(2), radix: 16);
+    }
+    if (afeData is List) {
+      int v = 0;
+      for (final item in afeData) {
+        if (item is Map) {
+          final key = item['key'] as String?;
+          if (key == 'CHG_FET' && item['value'] == 1) v |= (1 << 0);
+          if (key == 'DSG_FET' && item['value'] == 1) v |= (1 << 1);
+        }
+      }
+      return v;
+    }
+    return null;
+  }
+
   /// 从 AFE Status 中解析均衡电芯索引（0-based）
   Set<int> _parseBalancingCells(Map<String, dynamic>? afeStatus) {
     if (afeStatus == null) return {};
@@ -250,6 +276,8 @@ class BatteryGaugeSection extends StatelessWidget {
   final double current;
   final String bmsTime;
   final String version;
+  final bool chargeMosOn;
+  final bool dischargeMosOn;
 
   const BatteryGaugeSection({
     super.key,
@@ -260,6 +288,8 @@ class BatteryGaugeSection extends StatelessWidget {
     required this.current,
     required this.bmsTime,
     this.version = '',
+    this.chargeMosOn = false,
+    this.dischargeMosOn = false,
   });
 
   @override
@@ -323,6 +353,23 @@ class BatteryGaugeSection extends StatelessWidget {
                 unit: 'A',
               ),
             ),
+            // 充电/放电指示灯：文字在上、灯在下，位于仪表盘两侧偏上
+            Positioned(
+              left: 8,
+              bottom: 16,
+              child: _MosIndicator(
+                label: s.battery.charge,
+                on: chargeMosOn,
+              ),
+            ),
+            Positioned(
+              right: 8,
+              bottom: 16,
+              child: _MosIndicator(
+                label: s.battery.discharge,
+                on: dischargeMosOn,
+              ),
+            ),
           ],
         ),
       ],
@@ -347,6 +394,42 @@ class _CornerLabel extends StatelessWidget {
                 color: Theme.of(context).colorScheme.onSurfaceVariant)),
         Text(value,
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+      ],
+    );
+  }
+}
+
+/// 充放电 MOS 状态指示灯：文字在上、灯在下，开=绿带光晕，关=红
+class _MosIndicator extends StatelessWidget {
+  final String label;
+  final bool on;
+
+  const _MosIndicator({required this.label, required this.on});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = on ? AppColors.socGreen : AppColors.dangerRed;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+              fontSize: 11, fontWeight: FontWeight.w600, color: color),
+        ),
+        const SizedBox(height: 3),
+        // 指示灯
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color,
+            boxShadow: on
+                ? [BoxShadow(color: color.withOpacity(0.6), blurRadius: 4)]
+                : null,
+          ),
+        ),
       ],
     );
   }

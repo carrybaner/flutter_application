@@ -207,6 +207,18 @@ class _ExtendedCommandTabState extends ConsumerState<ExtendedCommandTab> {
             }),
           ),
           _commandTile(
+            icon: Icons.bolt,
+            title: _s.command.forceStart,
+            subtitle: _s.command.forceStartDesc,
+            onTap: () => _showConfirm(
+                _s.command.forceStart, _s.command.forceStartConfirm, () {
+              _sendCommand(
+                CommandBuilder.buildForceStartCommand(),
+                _s.command.forceStartOk,
+              );
+            }),
+          ),
+          _commandTile(
             icon: Icons.restart_alt,
             iconColor: AppColors.dangerRed,
             title: _s.command.restartBms,

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/device_model.dart';
-import '../../providers/device_data_provider.dart' show realtimeDataProvider, isConnectedProvider;
+import '../../providers/device_data_provider.dart'
+    show realtimeDataProvider, isConnectedProvider, realtimePollerProvider;
 import '../../providers/theme_provider.dart';
 import '../../services/bluetooth_service.dart';
+import '../../services/command_builder.dart';
 import '../../i18n/app_strings.dart';
 import '../../i18n/locale_provider.dart';
 import 'tabs/battery_info_tab.dart';
@@ -99,6 +101,122 @@ class _DevicePageState extends ConsumerState<DevicePage>
     );
   }
 
+  // ──── 修改 SN 码（仅 7030 协议）────
+
+  /// 点击顶部 SN/已连接 区域：仅 7030 协议支持，其余无反应
+  void _handleSnTap() {
+    if (widget.connectionResult.protocolId != '7030') return;
+    _showModifySnDialog();
+  }
+
+  /// 修改 SN 码对话框
+  void _showModifySnDialog() {
+    final controller = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(children: [
+          const Icon(Icons.edit_note, color: Colors.blue, size: 22),
+          const SizedBox(width: 8),
+          Text(_s.device.modifySn),
+        ]),
+        content: TextField(
+          controller: controller,
+          maxLength: 13,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: _s.device.modifySnHint,
+            counterText: '',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(_s.common.cancel),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final sn = controller.text.trim();
+              if (!_isValidSn(sn)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(_s.device.modifySnInvalid)),
+                );
+                return;
+              }
+              Navigator.pop(ctx);
+              _executeModifySn(sn);
+            },
+            child: Text(_s.common.ok),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// SN 校验：13 位且字符为可打印 ASCII（32~126）
+  bool _isValidSn(String sn) =>
+      sn.length == 13 && sn.codeUnits.every((c) => c >= 32 && c <= 126);
+
+  /// 发送修改 SN → 成功自动重启 BMS（设备断开由断连监听自动返回列表）
+  Future<void> _executeModifySn(String sn) async {
+    // 加载动画
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 48,
+                height: 48,
+                child: CircularProgressIndicator(strokeWidth: 3),
+              ),
+              const SizedBox(height: 24),
+              Text(_s.device.modifySnSending),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final poller = ref.read(realtimePollerProvider);
+    if (poller == null || !mounted) return;
+
+    try {
+      // 1. 发送修改 SN 命令，等设备响应
+      final resp = await poller
+          .sendAndWaitResponse(CommandBuilder.buildModifySnCommand(sn));
+      if (resp == null) {
+        if (mounted) _showSnack(_s.device.modifySnFailed);
+        return;
+      }
+      // 2. 修改成功 → 自动发送重启 BMS 命令（设备重启断开）
+      await poller
+          .sendAndWaitResponse(CommandBuilder.buildRestartBmsCommand());
+    } catch (_) {
+      // 忽略：重启命令发送异常（设备可能已断开），由断连监听返回
+    } finally {
+      // 关闭加载动画，断开返回由现有断连监听完成
+      if (mounted) _closeLoadingDialog();
+    }
+  }
+
+  void _closeLoadingDialog() {
+    Navigator.of(context).pop();
+  }
+
+  void _showSnack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
+    );
+  }
+
   PreferredSizeWidget _buildAppBar(bool isDark, int soc) {
 
     return AppBar(
@@ -106,15 +224,19 @@ class _DevicePageState extends ConsumerState<DevicePage>
         icon: const Icon(Icons.arrow_back_ios_new, size: 20),
         onPressed: () => Navigator.pop(context),
       ),
-      title: Column(
-        children: [
-          Text(
-            widget.device.displayName,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 2),
-          _StatusBadge(label: _s.device.connected),
-        ],
+      title: GestureDetector(
+        onTap: _handleSnTap,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              widget.device.displayName,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 2),
+            _StatusBadge(label: _s.device.connected),
+          ],
+        ),
       ),
       actions: [
         // 主题切换

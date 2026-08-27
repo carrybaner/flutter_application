@@ -366,6 +366,22 @@ class CommandBuilder {
   static String buildRestartBmsCommand() =>
       _buildExtensionCommand('0041');
 
+  /// 一键强启
+  static String buildForceStartCommand() =>
+      _buildExtensionCommand('0023');
+
+  /// 修改 SN 码（仅 7030 协议）
+  /// 帧: 0B + 10(写) + 6400(地址) + 0007(长度) + SN ASCII(13B) + 00 填充 + CRC
+  /// 数据区 14 字节（13 ASCII + 00 补齐）→ 长度字段 0007 = 7 寄存器
+  static String buildModifySnCommand(String sn) {
+    final asciiHex = sn.codeUnits
+        .map((c) => c.toRadixString(16).padLeft(2, '0'))
+        .join();
+    final cmd = '0B1064000007${asciiHex}00';
+    final crc = Crc16Utils.calculate(cmd);
+    return cmd + crc;
+  }
+
   /// 校准零点偏移
   static String buildCalibrateZeroCommand() =>
       _buildExtensionCommand('0022');
