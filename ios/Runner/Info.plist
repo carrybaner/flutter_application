@@ -57,5 +57,7 @@
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>用于选择要导入的配置文件</string>
 </dict>
 </plist>
