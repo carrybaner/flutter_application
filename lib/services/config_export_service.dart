@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import '../models/protocol_item.dart';
 
 /// 纯 CSV 配置导出/导入服务
@@ -181,6 +182,15 @@ class ConfigExportService {
 
   /// 获取配置目录
   static Future<Directory> _configDirectory() async {
+    // iOS：app 沙盒 Documents（配合 Info.plist 文件共享，用户在"文件"App 可见）
+    // Android：保持公共下载目录（现有逻辑）
+    if (Platform.isIOS) {
+      final docs = await getApplicationDocumentsDirectory();
+      final dir = Directory('${docs.path}/bms_configs');
+      await dir.create(recursive: true);
+      return dir;
+    }
+
     // 尝试多个可能的目录
     final candidates = <String>[
       '/storage/emulated/0/Download/bms_configs', // Android 下载目录

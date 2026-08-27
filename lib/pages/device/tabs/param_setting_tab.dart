@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/param_group.dart';
@@ -581,7 +582,7 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (_) => SafeArea(
+      builder: (sheetCtx) => SafeArea(
         child: DraggableScrollableSheet(
           initialChildSize: 0.5,
           minChildSize: 0.3,
@@ -604,7 +605,11 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
                     Text(_s.param.oneKeyConfig,
                         style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
                     const Spacer(),
-                    const SizedBox(width: 36),
+                    IconButton(
+                      icon: const Icon(Icons.file_upload, size: 20),
+                      tooltip: _s.shell.importConfig,
+                      onPressed: () => _importConfigFile(sheetCtx),
+                    ),
                   ],
                 ),
               ),
@@ -685,6 +690,28 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
     }
 
     _doBatchWrite(result, bundle.writableGroups);
+  }
+
+  /// 从文件 App 导入 CSV 配置文件（iOS/Android 通用，file_picker）
+  Future<void> _importConfigFile(BuildContext sheetCtx) async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['csv'],
+    );
+    if (result == null || result.files.single.path == null) return;
+
+    final file = File(result.files.single.path!);
+    final err = await ConfigExportService.importExternalFile(file);
+    if (!mounted) return;
+    if (err != null) {
+      _showSnackBar(err);
+      return;
+    }
+
+    _showSnackBar(_s.shell.importSuccess);
+    // 关闭当前 bottom sheet，重新打开刷新列表（含新导入的文件）
+    if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+    _quickConfig();
   }
 
   // ──────── 批量写入 ────────
