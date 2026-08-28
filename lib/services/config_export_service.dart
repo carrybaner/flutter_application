@@ -1,10 +1,14 @@
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/protocol_item.dart';
 
 /// 纯 CSV 配置导出/导入服务
 class ConfigExportService {
   ConfigExportService._();
+
+  /// 与 MainActivity 原生通道一致（getAppLabel / getConfigDir）
+  static const _appChannel = MethodChannel('com.example.flutter_application/app');
 
   // ──────── 导出 ────────
 
@@ -171,19 +175,40 @@ class ConfigExportService {
   /// 列出已保存的 CSV 配置文件
   static Future<List<File>> listSavedConfigs() async {
     final dir = await _configDirectory();
-    if (!await dir.exists()) return [];
-    return dir
-        .listSync()
-        .whereType<File>()
-        .where((f) => f.path.endsWith('.csv'))
-        .toList()
-      ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+    final seen = <String>{};
+    final files = <File>[];
+
+    // 收集某目录下所有 CSV（不可读/不存在的目录静默跳过）
+    Future<void> collect(Directory d) async {
+      try {
+        if (!await d.exists()) return;
+        await for (final e in d.list()) {
+          if (e is File && e.path.endsWith('.csv') && seen.add(e.path)) {
+            files.add(e);
+          }
+        }
+      } catch (_) {
+        // 目录不可读（如作用域存储下的公共 Download）则跳过
+      }
+    }
+
+    await collect(dir);
+
+    // 兼容旧版本：配置可能位于公共下载目录或旧兜底目录
+    for (final legacy in const [
+      '/storage/emulated/0/Download/bms_configs',
+      './bms_configs',
+    ]) {
+      if (legacy != dir.path) await collect(Directory(legacy));
+    }
+
+    files.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+    return files;
   }
 
   /// 获取配置目录
   static Future<Directory> _configDirectory() async {
     // iOS：app 沙盒 Documents（配合 Info.plist 文件共享，用户在"文件"App 可见）
-    // Android：保持公共下载目录（现有逻辑）
     if (Platform.isIOS) {
       final docs = await getApplicationDocumentsDirectory();
       final dir = Directory('${docs.path}/bms_configs');
@@ -191,7 +216,23 @@ class ConfigExportService {
       return dir;
     }
 
-    // 尝试多个可能的目录
+    // Android：App 私有 filesDir/bms_configs，与原生 handleFileIntent 写入位置一致。
+    // 作用域存储（Android 10+）下公共 Download 不可用 java.io.File 直写，
+    // 私有目录无需任何存储权限、全版本可用。
+    if (Platform.isAndroid) {
+      try {
+        final path = await _appChannel.invokeMethod<String>('getConfigDir');
+        if (path != null && path.isNotEmpty) {
+          final dir = Directory(path);
+          await dir.create(recursive: true);
+          return dir;
+        }
+      } catch (_) {
+        // 原生通道不可用时退回下方通用目录探测
+      }
+    }
+
+    // 其他平台 / 兜底：尝试多个可能的目录
     final candidates = <String>[
       '/storage/emulated/0/Download/bms_configs', // Android 下载目录
       '${_homePath()}/Downloads/bms_configs',

@@ -3,7 +3,6 @@ package com.example.flutter_application
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
 import android.widget.Toast
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -19,16 +18,27 @@ class MainActivity: FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
-            if (call.method == "getAppLabel") {
-                try {
-                    val appInfo = packageManager.getApplicationInfo(packageName, 0)
-                    val label = packageManager.getApplicationLabel(appInfo).toString()
-                    result.success(label)
-                } catch (e: Exception) {
-                    result.success("畅烁锂电")
+            when (call.method) {
+                "getAppLabel" -> {
+                    try {
+                        val appInfo = packageManager.getApplicationInfo(packageName, 0)
+                        val label = packageManager.getApplicationLabel(appInfo).toString()
+                        result.success(label)
+                    } catch (e: Exception) {
+                        result.success("畅烁锂电")
+                    }
                 }
-            } else {
-                result.notImplemented()
+                "getConfigDir" -> {
+                    try {
+                        // App 私有 filesDir/bms_configs：与 handleFileIntent 写入位置一致
+                        val configDir = File(filesDir, "bms_configs")
+                        configDir.mkdirs()
+                        result.success(configDir.absolutePath)
+                    } catch (e: Exception) {
+                        result.error("GET_CONFIG_DIR_FAILED", e.message, null)
+                    }
+                }
+                else -> result.notImplemented()
             }
         }
     }
@@ -47,6 +57,10 @@ class MainActivity: FlutterActivity() {
      * 统一处理外部传入的配置文件
      * ACTION_VIEW — QQ/微信中"用其他应用打开"
      * ACTION_SEND — 文件管理器中"分享"
+     *
+     * 写入 App 私有目录 filesDir/bms_configs（与 Flutter 端 ConfigExportService
+     * 读取目录一致）。作用域存储（Android 10+）下公共 Download 目录不可用
+     * java.io.File 直写，私有目录无需任何存储权限、全版本可用。
      */
     private fun handleFileIntent(intent: Intent?) {
         if (intent == null) return
@@ -73,10 +87,7 @@ class MainActivity: FlutterActivity() {
 
             val fileName = resolveFileName(content, uri)
 
-            val configDir = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                "bms_configs"
-            )
+            val configDir = File(filesDir, "bms_configs")
             if (!configDir.exists()) {
                 configDir.mkdirs()
             }
