@@ -701,7 +701,8 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
     if (result == null || result.files.single.path == null) return;
 
     final file = File(result.files.single.path!);
-    final err = await ConfigExportService.importExternalFile(file);
+    final err = await ConfigExportService.importExternalFile(file,
+        originalName: result.files.single.name);
     if (!mounted) return;
     if (err != null) {
       _showSnackBar(err);

@@ -273,23 +273,46 @@ class ConfigExportService {
   }
 
   /// 将外部文件复制到配置目录，返回复制后的文件
-  static Future<File> copyToConfigDir(File sourceFile, String protocolId) async {
+  /// 优先保留原始文件名（originalName），缺省时用"协议号_时间戳"命名
+  static Future<File> copyToConfigDir(File sourceFile, String protocolId,
+      {String? originalName}) async {
     final dir = await _configDirectory();
+    final fileName = originalName != null &&
+            originalName.toLowerCase().endsWith('.csv')
+        ? _uniqueFileName(dir, originalName)
+        : _timestampFileName(protocolId);
+    final destFile = File('${dir.path}/$fileName');
+    await sourceFile.copy(destFile.path);
+    return destFile;
+  }
+
+  /// 生成"协议号_时间戳.csv"（原缺省命名）
+  static String _timestampFileName(String protocolId) {
     final timestamp = DateTime.now()
         .toLocal()
         .toString()
         .replaceAll(':', '-')
         .replaceAll('.', '-')
         .substring(0, 19);
-    final fileName = '${protocolId}_$timestamp.csv';
-    final destFile = File('${dir.path}/$fileName');
-    await sourceFile.copy(destFile.path);
-    return destFile;
+    return '${protocolId}_$timestamp.csv';
+  }
+
+  /// 若目标目录已存在同名文件，追加 (1)/(2) 后缀避免覆盖
+  static String _uniqueFileName(Directory dir, String name) {
+    final base = name.substring(0, name.length - 4); // 去掉 .csv
+    var candidate = name;
+    var i = 1;
+    while (File('${dir.path}/$candidate').existsSync()) {
+      candidate = '$base ($i).csv';
+      i++;
+    }
+    return candidate;
   }
 
   /// 从外部文件导入配置（验证并复制到配置目录）
   /// 返回 null 表示成功，返回错误信息字符串表示失败
-  static Future<String?> importExternalFile(File sourceFile) async {
+  static Future<String?> importExternalFile(File sourceFile,
+      {String? originalName}) async {
     // 1. 验证文件是否为 CSV 格式
     try {
       final content = await sourceFile.readAsString();
@@ -297,8 +320,9 @@ class ConfigExportService {
       if (!result.success) {
         return result.error ?? 'CSV 解析失败';
       }
-      // 2. 复制到配置目录
-      await copyToConfigDir(sourceFile, result.protocolId);
+      // 2. 复制到配置目录（保留原始文件名）
+      await copyToConfigDir(sourceFile, result.protocolId,
+          originalName: originalName);
       return null; // 成功
     } catch (e) {
       return '读取文件失败: $e';

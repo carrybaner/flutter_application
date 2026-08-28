@@ -100,10 +100,9 @@ class _ConfigFilesPageState extends ConsumerState<ConfigFilesPage> {
                             style: const TextStyle(fontSize: 12),
                           ),
                           trailing: PopupMenuButton<String>(
-                            onSelected: (action) {
+                            onSelected: (action) async {
                               if (action == 'share') {
-                                Share.shareXFiles([XFile(file.path)],
-                                    subject: name);
+                                await _shareFile(file, name, s);
                               } else if (action == 'delete') {
                                 _deleteFile(file, s);
                               }
@@ -140,6 +139,31 @@ class _ConfigFilesPageState extends ConsumerState<ConfigFilesPage> {
                   ),
                 ),
     );
+  }
+
+  /// 转发配置文件
+  /// iOS 26 起要求 sharePositionOrigin（缺失时分享面板不弹出），
+  /// 锚点取当前页面渲染区域；iPad 上同样生效。
+  Future<void> _shareFile(File file, String name, AppStrings s) async {
+    final box = context.findRenderObject() as RenderBox?;
+    try {
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: name,
+        sharePositionOrigin: box == null
+            ? const Rect.fromLTWH(0, 0, 1, 1)
+            : box.localToGlobal(Offset.zero) & box.size,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${s.shell.shareFile}失败: $e'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _deleteFile(File file, AppStrings s) async {

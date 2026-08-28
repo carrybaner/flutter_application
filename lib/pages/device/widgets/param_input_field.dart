@@ -58,10 +58,15 @@ class _ParamInputFieldState extends State<ParamInputField> {
     double? newVal = double.tryParse(text);
     newVal ??= int.tryParse(text.replaceFirst('0x', ''), radix: 16)?.toDouble();
     newVal ??= int.tryParse(text)?.toDouble();
-    if (newVal != null && newVal != _lastValue) {
-      widget.onChanged?.call(_lastValue, newVal);
+    if (newVal == null) {
       _ctrl.text = _displayText;
-    } else if (newVal == null) {
+      return;
+    }
+    // 浮点噪声容差：设备值经缩放后可能是 218.68000000000001，
+    // 与文本框字符串解析出的 218.68 显示相同但按位不等。
+    // 直接用 == 会误判为"已修改"而弹出确认框。容差内视为未修改。
+    if ((newVal - _lastValue).abs() > 1e-6) {
+      widget.onChanged?.call(_lastValue, newVal);
       _ctrl.text = _displayText;
     }
   }
