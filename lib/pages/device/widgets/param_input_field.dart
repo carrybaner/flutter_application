@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../models/param_group.dart';
+import '../../../services/feature_guard.dart';
 
 /// 参数输入字段
 ///
@@ -22,6 +23,9 @@ class _ParamInputFieldState extends State<ParamInputField> {
   late TextEditingController _ctrl;
   late FocusNode _focusNode;
   double _lastValue = 0;
+
+  /// 是否已通过授权（可编辑）。未授权时点按输入框先弹密码。
+  bool _unlocked = false;
 
   String get _displayText {
     if (widget.param.displayText != null) return widget.param.displayText!;
@@ -75,6 +79,15 @@ class _ParamInputFieldState extends State<ParamInputField> {
     if (!_focusNode.hasFocus) _checkAndNotify();
   }
 
+  /// 未解锁的输入框：点击先弹授权密码，通过后才可编辑
+  Future<void> _handleUnlockTap() async {
+    if (widget.param.readOnly || _unlocked) return;
+    if (!await FeatureGuard.ensureUnlocked(context)) return;
+    if (!mounted) return;
+    setState(() => _unlocked = true);
+    _focusNode.requestFocus();
+  }
+
   @override
   void dispose() {
     _focusNode.removeListener(_onFocusChange);
@@ -104,7 +117,11 @@ class _ParamInputFieldState extends State<ParamInputField> {
           Expanded(
             child: SizedBox(
               height: 40,
-              child: TextField(
+              child: GestureDetector(
+                onTap: _handleUnlockTap,
+                child: AbsorbPointer(
+                  absorbing: !_unlocked && !p.readOnly,
+                  child: TextField(
                 controller: _ctrl,
                 focusNode: _focusNode,
                 readOnly: p.readOnly,
@@ -127,6 +144,8 @@ class _ParamInputFieldState extends State<ParamInputField> {
                   _focusNode.unfocus();
                   _checkAndNotify();
                 },
+              ),
+                ),
               ),
             ),
           ),

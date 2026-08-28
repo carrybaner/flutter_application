@@ -1,7 +1,7 @@
 name: flutter_application
 description: BMS 蓝牙电池管理系统
 publish_to: 'none'
-version: 1.0.0+7
+version: 1.0.0+8
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -35,6 +35,9 @@ dependencies:
   share_plus: ^7.2.0
   path_provider: ^2.1.6
   file_picker: ^11.0.3
+
+  # 密码哈希（功能解锁）
+  crypto: ^3.0.3
 
 dev_dependencies:
   flutter_test:

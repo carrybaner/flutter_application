@@ -10,6 +10,7 @@ import '../../../models/protocol_item.dart';
 import '../../../providers/device_data_provider.dart';
 import '../../../services/bluetooth_service.dart';
 import '../../../services/command_builder.dart';
+import '../../../services/feature_guard.dart';
 import '../../../services/config_export_service.dart';
 import '../../../services/protocol_parser.dart';
 import '../../../services/realtime_poller.dart';
@@ -670,8 +671,9 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
             Text(_s.param.oneKeyConfig),
           ]),
           content: Text(
-            '配置文件协议 ${result.protocolId} 与当前设备协议 ${bundle.protocolId} 不匹配，\n'
-            '继续写入可能导致异常。是否继续？',
+            _s.param.writeProtocolMismatch
+                .replaceAll('%1', result.protocolId)
+                .replaceAll('%2', bundle.protocolId),
             style: const TextStyle(fontSize: 14),
           ),
           actions: [
@@ -688,6 +690,10 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
       );
       if (proceed != true) return;
     }
+
+    // 一键配置写入设备需授权（导入文件本身不设卡）
+    if (!mounted) return;
+    if (!await FeatureGuard.ensureUnlocked(context)) return;
 
     _doBatchWrite(result, bundle.writableGroups);
   }
@@ -769,9 +775,9 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
     if (tasks.isEmpty) {
       if (!mounted) return;
       final extra = unmatchedNames.isNotEmpty
-          ? '\n\n未识别的组: ${unmatchedNames.join(', ')}'
+          ? '\n\n${_s.param.writeUnknownGroups}: ${unmatchedNames.join(', ')}'
           : '';
-      _showSnackBar('CSV 中没有与当前设备匹配的可写参数组。$extra');
+      _showSnackBar('${_s.param.writeNoMatch}$extra');
       return;
     }
 
@@ -797,10 +803,14 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
                 const SizedBox(height: 8),
                 const CircularProgressIndicator(),
                 const SizedBox(height: 20),
-                Text('正在写入 $done / $totalGroups',
+                Text(_s.param.writeProgress
+                    .replaceAll('%1', '$done')
+                    .replaceAll('%2', '$totalGroups'),
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
-                Text('成功 $successCount  失败 $failCount',
+                Text(_s.param.writeProgressResult
+                    .replaceAll('%1', '$successCount')
+                    .replaceAll('%2', '$failCount'),
                     style: const TextStyle(fontSize: 13, color: Colors.grey)),
                 const SizedBox(height: 8),
               ],
@@ -867,9 +877,14 @@ class _ParamSettingTabState extends ConsumerState<ParamSettingTab> {
     Navigator.of(context).pop(); // 关闭进度弹窗
 
     // 汇总
-    final summaryParts = <String>['成功 $successCount 组，失败 $failCount 组'];
+    final summaryParts = <String>[
+      _s.param.writeSummary
+          .replaceAll('%1', '$successCount')
+          .replaceAll('%2', '$failCount'),
+    ];
     if (unmatchedNames.isNotEmpty) {
-      summaryParts.add('CSV 中存在但设备不支持的组: ${unmatchedNames.join(', ')}');
+      summaryParts.add(
+          '${_s.param.writeUnsupportedGroups}: ${unmatchedNames.join(', ')}');
     }
 
     showDialog(

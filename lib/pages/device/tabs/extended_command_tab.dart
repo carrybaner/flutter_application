@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/device_data_provider.dart';
 import '../../../services/command_builder.dart';
+import '../../../services/feature_guard.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/confirmation_dialog.dart';
 import '../widgets/switch_toggle_card.dart';
@@ -142,7 +143,9 @@ class _ExtendedCommandTabState extends ConsumerState<ExtendedCommandTab> {
             subtitle: _s.command.chargeDesc,
             icon: Icons.power,
             value: _chargeEnabled,
-            onChanged: (v) {
+            onChanged: (v) async {
+              if (!await FeatureGuard.ensureUnlocked(context)) return;
+              if (!mounted) return;
               setState(() {
                 _chargeEnabled = v;
                 _pendingCharge = true;
@@ -169,7 +172,9 @@ class _ExtendedCommandTabState extends ConsumerState<ExtendedCommandTab> {
             subtitle: _s.command.dischargeDesc,
             icon: Icons.power_off,
             value: _dischargeEnabled,
-            onChanged: (v) {
+            onChanged: (v) async {
+              if (!await FeatureGuard.ensureUnlocked(context)) return;
+              if (!mounted) return;
               setState(() {
                 _dischargeEnabled = v;
                 _pendingDischarge = true;
@@ -199,7 +204,7 @@ class _ExtendedCommandTabState extends ConsumerState<ExtendedCommandTab> {
             icon: Icons.access_time,
             title: _s.command.syncTime,
             subtitle: _s.command.syncDesc,
-            onTap: () => _showConfirm('同步时间', _s.command.syncConfirm, () {
+            onTap: () => _showConfirm(_s.command.syncTime, _s.command.syncConfirm, () {
               _sendCommand(
                 CommandBuilder.buildTimeSyncCommand(),
                 _s.command.timeSyncOk,
@@ -210,13 +215,17 @@ class _ExtendedCommandTabState extends ConsumerState<ExtendedCommandTab> {
             icon: Icons.bolt,
             title: _s.command.forceStart,
             subtitle: _s.command.forceStartDesc,
-            onTap: () => _showConfirm(
-                _s.command.forceStart, _s.command.forceStartConfirm, () {
-              _sendCommand(
-                CommandBuilder.buildForceStartCommand(),
-                _s.command.forceStartOk,
-              );
-            }),
+            onTap: () async {
+              if (!await FeatureGuard.ensureUnlocked(context)) return;
+              if (!mounted) return;
+              _showConfirm(
+                  _s.command.forceStart, _s.command.forceStartConfirm, () {
+                _sendCommand(
+                  CommandBuilder.buildForceStartCommand(),
+                  _s.command.forceStartOk,
+                );
+              });
+            },
           ),
           _commandTile(
             icon: Icons.restart_alt,
@@ -225,13 +234,17 @@ class _ExtendedCommandTabState extends ConsumerState<ExtendedCommandTab> {
             subtitle: _s.command.restartDesc,
             titleColor: AppColors.dangerRed,
             isDanger: true,
-            onTap: () => _showConfirm(_s.command.restartBms,
-                _s.command.restartConfirm, () {
-              _sendCommand(
-                CommandBuilder.buildRestartBmsCommand(),
-                _s.command.restartOk,
-              );
-            }),
+            onTap: () async {
+              if (!await FeatureGuard.ensureUnlocked(context)) return;
+              if (!mounted) return;
+              _showConfirm(_s.command.restartBms, _s.command.restartConfirm,
+                  () {
+                _sendCommand(
+                  CommandBuilder.buildRestartBmsCommand(),
+                  _s.command.restartOk,
+                );
+              });
+            },
           ),
           const SizedBox(height: 24),
 
@@ -245,12 +258,14 @@ class _ExtendedCommandTabState extends ConsumerState<ExtendedCommandTab> {
             unit: 'A',
             btnLabel: _s.command.calCurrent,
             controller: _currentCalCtrl,
-            onTap: () {
+            onTap: () async {
               final val = double.tryParse(_currentCalCtrl.text);
               if (val == null) {
                 _showSnackBar(_s.command.invalidCurrent);
                 return;
               }
+              if (!await FeatureGuard.ensureUnlocked(context)) return;
+              if (!mounted) return;
               _sendCommand(
                 CommandBuilder.buildCalibrateCurrentCommand(val),
                 _s.command.currentCalOk,
@@ -263,12 +278,14 @@ class _ExtendedCommandTabState extends ConsumerState<ExtendedCommandTab> {
             unit: 'V',
             btnLabel: _s.command.calVoltage,
             controller: _voltageCalCtrl,
-            onTap: () {
+            onTap: () async {
               final val = double.tryParse(_voltageCalCtrl.text);
               if (val == null) {
                 _showSnackBar(_s.command.invalidVoltage);
                 return;
               }
+              if (!await FeatureGuard.ensureUnlocked(context)) return;
+              if (!mounted) return;
               _sendCommand(
                 CommandBuilder.buildCalibrateVoltageCommand(val),
                 _s.command.voltageCalOk,
@@ -280,10 +297,14 @@ class _ExtendedCommandTabState extends ConsumerState<ExtendedCommandTab> {
             width: double.infinity,
             height: 44,
             child: ElevatedButton.icon(
-              onPressed: () => _sendCommand(
-                CommandBuilder.buildSaveCalibrationCommand(),
-                _s.command.saveCalOk,
-              ),
+              onPressed: () async {
+                if (!await FeatureGuard.ensureUnlocked(context)) return;
+                if (!mounted) return;
+                _sendCommand(
+                  CommandBuilder.buildSaveCalibrationCommand(),
+                  _s.command.saveCalOk,
+                );
+              },
               icon: const Icon(Icons.save),
               label: Text(_s.command.saveCal),
               style: ElevatedButton.styleFrom(
@@ -361,10 +382,14 @@ class _ExtendedCommandTabState extends ConsumerState<ExtendedCommandTab> {
         ),
         const SizedBox(width: 10),
         ElevatedButton(
-          onPressed: () => _sendCommand(
-            CommandBuilder.buildCalibrateZeroCommand(),
-            _s.command.zeroCalOk,
-          ),
+          onPressed: () async {
+            if (!await FeatureGuard.ensureUnlocked(context)) return;
+            if (!mounted) return;
+            _sendCommand(
+              CommandBuilder.buildCalibrateZeroCommand(),
+              _s.command.zeroCalOk,
+            );
+          },
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.blue,
             foregroundColor: Colors.white,

@@ -6,6 +6,7 @@ import '../../providers/device_data_provider.dart'
 import '../../providers/theme_provider.dart';
 import '../../services/bluetooth_service.dart';
 import '../../services/command_builder.dart';
+import '../../services/feature_guard.dart';
 import '../../i18n/app_strings.dart';
 import '../../i18n/locale_provider.dart';
 import 'tabs/battery_info_tab.dart';
@@ -103,9 +104,12 @@ class _DevicePageState extends ConsumerState<DevicePage>
 
   // ──── 修改 SN 码（仅 7030 协议）────
 
-  /// 点击顶部 SN/已连接 区域：仅 7030 协议支持，其余无反应
-  void _handleSnTap() {
+  /// 点击顶部 SN/已连接 区域：仅 7030 协议支持，其余无反应。
+  /// 修改 SN 前先弹授权密码。
+  Future<void> _handleSnTap() async {
     if (widget.connectionResult.protocolId != '7030') return;
+    if (!await FeatureGuard.ensureUnlocked(context)) return;
+    if (!mounted) return;
     _showModifySnDialog();
   }
 
